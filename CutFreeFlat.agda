@@ -19,9 +19,6 @@ infix 25 _∨_
 infix 4 _⇒_
 infix 3 _⊢_
 
---infix 5 _or_
-
-
 mutual
 
  data Formula : Set where
@@ -48,11 +45,8 @@ mutual
 
 
 
-
-
 Context : Set
 Context = List Formula
-
 
 substVar : Formula → Formula  → Formula 
 substVar A unit = unit
@@ -184,10 +178,10 @@ data _⊢_ :  HContext  → Seq → Set where
             → Φ ⊢ Γ ⇒ C
             → Φ ⊢ A ∷ Γ ⇒ C
 
-  exchng  : ∀ {Φ : HContext} {Γ Γ₁ Γ₂ : Context} {A : Formula}{C : Formula}
-            → Γ ≡  Γ₁ ++ Γ₂
-            → Φ ⊢ Γ₁ ++ A ∷ Γ₂ ⇒ C
-            → Φ ⊢ A ∷ Γ₁ ++ Γ₂ ⇒ C            
+--  exchng  : ∀ {Φ : HContext} {Γ Γ₁ Γ₂ : Context} {A : Formula}{C : Formula}
+--            → Γ ≡  Γ₁ ++ Γ₂
+--            → Φ ⊢ Γ₁ ++ A ∷ Γ₂ ⇒ C
+--            → Φ ⊢ A ∷ Γ₁ ++ Γ₂ ⇒ C            
 
 
 open import Data.Product
@@ -303,7 +297,7 @@ substEq var {μ B x x₁} p v =  v
 substEq (μ A x x₁) p v = v 
 
 {-  -}
-⟦_⟧ : {Φ : HContext}{Γ : Context}{A : Formula} → Φ ⊢ (Γ ⇒ A) → (ρs : Maybe Set)    → ⟦ Φ ⟧H ρs →  ⟦ Γ ⟧c ρs → ⟦ A ⟧F ρs
+⟦_⟧ : {Φ : HContext}{Γ : Context}{A : Formula} → Φ ⊢ (Γ ⇒ A) → (ρs : Maybe Set) → ⟦ Φ ⟧H ρs →  ⟦ Γ ⟧c ρs → ⟦ A ⟧F ρs
 ⟦ id-axiom ⟧ ρs v = λ { (x , _) → x }
 ⟦ unit-r ⟧ ρs v = λ _ → tt
 ⟦ unit-l c ⟧ ρs v = λ { (a , b) → ⟦ c ⟧ ρs v b  }
@@ -323,7 +317,7 @@ substEq (μ A x x₁) p v = v
 ⟦ hyp-use (there x) ⟧ ρs (_ , h) =  ⟦ hyp-use x ⟧ ρs h  
 ⟦ contr c ⟧ ρs v = λ { (a , g) → ⟦ c ⟧ ρs v (a , a , g) }
 ⟦ weakn c ⟧ ρs v = λ { (a , g) → ⟦ c ⟧ ρs v g }
-⟦ exchng {Γ₁ = Γ₁} refl c ⟧ ρs v q = {!Γ !}
+--⟦ exchng {Γ₁ = Γ₁} refl c ⟧ ρs v q = {!Γ !}
 
 
 
@@ -333,7 +327,7 @@ NatRaw =  μ (unit ∨ var)  refl refl
 
 
 Nat : Set
-Nat = ⟦ NatRaw  ⟧F  nothing
+Nat = ⟦ NatRaw ⟧F  nothing
 
 z : Nat
 z = In (inj₁ tt)
@@ -344,6 +338,10 @@ s n = In (inj₂ n)
 Nat2ℕ : Nat → ℕ
 Nat2ℕ (IN f (inj₁ tt)) = 0
 Nat2ℕ (IN f (inj₂ y)) = suc (Nat2ℕ (f y))
+
+ℕ2Nat : ℕ → Nat
+ℕ2Nat zero = z
+ℕ2Nat (suc n) = s (ℕ2Nat n)
 
 
 addRaw :  [] ⊢ NatRaw ∧ NatRaw ∷ [] ⇒ NatRaw
@@ -387,7 +385,6 @@ idNat-lem (IN x (inj₂ y)) = cong suc (idNat-lem (x y))
 
 ---
 
-
 dblNatRaw : [] ⊢ NatRaw ∷ [] ⇒ NatRaw
 dblNatRaw = μ-l refl refl (∨-l (unit-l (μ-r refl refl (∨-r₁  unit-r))) (μ-r refl refl (∨-r₂ (μ-r refl refl (∨-r₂ (hyp-use (here refl))))))) refl refl refl
 
@@ -409,3 +406,141 @@ dblNat-lem (IN x (inj₁ x₁)) = refl
 dblNat-lem (IN x (inj₂ y)) rewrite dblNat-lem (x y)
   | +-comm (Nat2ℕ (x y)) (suc (Nat2ℕ (x y) + 0))
   | +-comm (Nat2ℕ (x y)) 0  = refl
+
+-----
+
+cntFree : {A : Formula}{Φ : HContext}{Γ : Context} → Φ ⊢ Γ ⇒ A → Bool
+cntFree id-axiom = true
+cntFree unit-r = true
+cntFree (unit-l t) = cntFree t
+cntFree (∧-r t t₁) = cntFree t & cntFree t₁
+cntFree (∧-l t) = cntFree t
+cntFree (∨-r₁ t) = cntFree t
+cntFree (∨-r₂ t) = cntFree t
+cntFree (∨-l t t₁) = cntFree t & cntFree t₁
+cntFree (μ-r prf prf2 t) = cntFree t
+cntFree (μ-l prf prf2 t x x₁ x₂) = cntFree t
+cntFree (hyp-use x) = true
+cntFree (contr t) = false
+cntFree (weakn t) = cntFree t
+
+BoolRaw : Formula
+BoolRaw = unit ∨ unit
+
+𝔹 : Set
+𝔹 = ⟦ BoolRaw  ⟧F nothing
+
+t : 𝔹
+t = inj₁ tt
+
+f : 𝔹
+f = inj₂ tt
+
+
+zz : [] ⊢ NatRaw ∷ [] ⇒ BoolRaw → Nat → 𝔹
+zz prf n = ⟦ prf ⟧  nothing tt (n , tt)
+
+
+
+
+&-comm : {a : Bool} →  a & false ≡ true → ⊥
+&-comm {false} () 
+&-comm {true}  () 
+
+zz-lem : (d : [] ⊢ NatRaw ∷ [] ⇒ BoolRaw) → cntFree d ≡ true → zz d (s (s (s z))) ≡ zz d (s z) 
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ id-axiom) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ id-axiom) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ id-axiom) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ id-axiom) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ id-axiom) (contr d₁)) x x₁ x₂) ()  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ id-axiom) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ unit-r) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ unit-r) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ unit-r) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ unit-r) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ unit-r) (contr d₁)) x x₁ x₂) ()  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ unit-r) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (unit-l d)) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (unit-l d)) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (unit-l d)) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (unit-l d)) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (unit-l d)) (contr d₁)) x x₁ x₂) prf  = ⊥-elim (&-comm prf)
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (unit-l d)) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (hyp-use (here ()))) d₁) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (hyp-use (there ()))) d₁) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (contr d)) d₁) x x₁ x₂) ()  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (weakn d)) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (weakn d)) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (weakn d)) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (weakn d)) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (weakn d)) (contr d₁)) x x₁ x₂) prf  = ⊥-elim (&-comm prf)
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₂ (weakn d)) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (∨-r₁ d) prf  = refl
+zz-lem  (∨-r₂ d) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-r₁ unit-r) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-r₁ (∨-l d d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-r₁ (hyp-use x₃)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-r₁ (contr d)) x x₁ x₂) ()
+zz-lem  (μ-l .refl .refl (∨-r₁ (weakn d)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-r₂ d) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (unit-l d) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (unit-l d) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (unit-l (∨-r₁ d)) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (unit-l (∨-r₂ d)) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (unit-l (hyp-use (here ()))) (hyp-use (here refl))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (unit-l (hyp-use (there ()))) (hyp-use (here refl))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (unit-l d) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (unit-l d) (contr d₁)) x x₁ x₂)  prf   = ⊥-elim (&-comm  prf)
+zz-lem  (μ-l .refl .refl (∨-l (unit-l d) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ id-axiom) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ id-axiom) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ id-axiom) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ id-axiom) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ id-axiom) (contr d₁)) x x₁ x₂) ()  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ id-axiom) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ unit-r) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ unit-r) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ unit-r) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ unit-r) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ unit-r) (contr d₁)) x x₁ x₂) ()  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ unit-r) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (unit-l d)) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (unit-l d)) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (unit-l d)) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (unit-l d)) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (unit-l d)) (contr d₁)) x x₁ x₂) prf  = ⊥-elim (&-comm prf)
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (unit-l d)) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (hyp-use (here ()))) d₁) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (hyp-use (there ()))) d₁) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (contr d)) d₁) x x₁ x₂) ()  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (weakn d)) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (weakn d)) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (weakn d)) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (weakn d)) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (weakn d)) (contr d₁)) x x₁ x₂) prf  = ⊥-elim (&-comm prf)
+zz-lem  (μ-l .refl .refl (∨-l (∨-r₁ (weakn d)) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (hyp-use (here ())) d₁) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (hyp-use (there ())) d₁) x x₁ x₂) prf 
+zz-lem  (μ-l .refl .refl (∨-l (contr d) d₁) x x₁ x₂) ()  
+zz-lem  (μ-l .refl .refl (∨-l (weakn d) (∨-r₁ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (weakn d) (∨-r₂ d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (weakn (∨-r₁ d)) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (weakn (∨-r₂ d)) (hyp-use (here refl))) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (∨-l (weakn (hyp-use (here ()))) (hyp-use (here refl))) x x₁ x₂) prf 
+zz-lem  (μ-l .refl .refl (∨-l (weakn (hyp-use (there ()))) (hyp-use (here refl))) x x₁ x₂) prf 
+zz-lem  (μ-l .refl .refl (∨-l (weakn d) (hyp-use (there ()))) x x₁ x₂) prf  
+zz-lem  (μ-l .refl .refl (∨-l (weakn d) (contr d₁)) x x₁ x₂) prf  = ⊥-elim (&-comm prf)
+zz-lem  (μ-l .refl .refl (∨-l (weakn d) (weakn d₁)) x x₁ x₂) prf  = refl
+zz-lem  (μ-l .refl .refl (hyp-use (here ())) x x₁ x₂) prf
+zz-lem  (μ-l .refl .refl (hyp-use (there ())) x x₁ x₂) prf
+zz-lem  (μ-l .refl .refl (contr d) x x₁ x₂) ()
+zz-lem  (μ-l .refl .refl (weakn d) x x₁ x₂) prf  = refl
+zz-lem  (hyp-use ()) prf
+zz-lem  (contr d) ()
+zz-lem  (weakn (∨-r₁ unit-r)) prf  = refl
+zz-lem  (weakn (∨-r₁ (hyp-use ()))) prf
+zz-lem  (weakn (∨-r₂ d)) prf  = refl
+zz-lem  (weakn (hyp-use ())) prf
+
+
+
