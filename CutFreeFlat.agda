@@ -21,31 +21,31 @@ infix 3 _⊢_
 
 {-
 
-Environments
+Environments:
 
-●  ⊤ : no recursion
+  ●  ⊤ : no recursion
 
-● Maybe Set : one recursion
+  ● Maybe Set : one recursion
 
-  ─   μ-l  : ∀ {Φ : HContext} {Γ : Context} {A : Formula}{C : Formula}
-            → (prf  : μ? A ≡ false)
-            → (prf2 : v? A ≡ true)
-            → (var ∷  Γ ⇒  C) ∷  Φ  ⊢ A ∷  Γ ⇒ C
-            → closed C ≡ true
-            → closedH Φ ≡ true
-            → closedC Γ ≡ true 
-            → Φ ⊢ μ A prf prf2 ∷  Γ ⇒ C
+    ─   μ-l  : ∀ {Φ : HContext} {Γ : Context} {A : Formula}{C : Formula}
+              → (prf  : μ? A ≡ false)
+              → (prf2 : v? A ≡ true)
+              → (var ∷  Γ ⇒  C) ∷  Φ  ⊢ A ∷  Γ ⇒ C
+              → closed C ≡ true
+              → closedH Φ ≡ true
+              → closedC Γ ≡ true 
+              → Φ ⊢ μ A prf prf2 ∷  Γ ⇒ C
 
 
-      Tarmo: ei saa teha järgmist
+        Tarmo: ei saa teha järgmist
 
-             1 + Y, 1 + Z ---> C
-             ------------------
-             1 + Y, Nat ---> C
-             ---------------
-             Nat, Nat => C
+               1 + Y, 1 + Z ---> C
+               ------------------
+               1 + Y, Nat ---> C
+               ---------------
+               Nat, Nat => C
 
-● Vec Set n : many recursions
+  ● Vec Set n : many simultaneous recursions
 
 
 Most general environment Vec Set n
@@ -111,19 +111,22 @@ closedH : HContext → Bool
 closedH Φ = and (Data.List.map closedS Φ)
 
 
-closedH-1 : {y : Context}{x : Formula} → (g : HContext) →  closedH ((y ⇒ x) ∷ g) ≡ true → closedC y ≡ true
+closedH-1 : {y : Context}{x : Formula} → (g : HContext) →  closedH ((y ⇒ x) ∷ g) ≡ true
+ → closedC y ≡ true
 closedH-1 {y} {x} g p with closed x | closedC y
 closedH-1 {y} {x} g () | false | false
 closedH-1 {y} {x} g () | true | false
 closedH-1 {y} {x} g p | z | true = refl
 
-closedH-2 : {y : Context}{x : Formula} → (g : HContext) →  closedH ((y ⇒ x) ∷ g) ≡ true → closed x ≡ true
+closedH-2 : {y : Context}{x : Formula} → (g : HContext) →  closedH ((y ⇒ x) ∷ g) ≡ true
+ → closed x ≡ true
 closedH-2 {y} {x} g p with closed x 
 closedH-2 {y} {x} g () | false 
 closedH-2 {y} {x} g p  | true  = refl
 
 
-closedH-3 : {y : Context}{x : Formula} → (g : HContext) →  closedH ((y ⇒ x) ∷ g) ≡ true → closedH g ≡ true
+closedH-3 : {y : Context}{x : Formula} → (g : HContext) →  closedH ((y ⇒ x) ∷ g) ≡ true
+ → closedH g ≡ true
 closedH-3 {y} {x} g p with closed x | closedC y
 closedH-3 {y} {x} g () | false | false
 closedH-3 {y} {x} g () | true | false
@@ -269,17 +272,21 @@ wcf-eq {_} {_} {μ C} = refl
 
 weakenC : {X : Set} → (Γ : Context) → closedC Γ ≡ true → ⟦ Γ ⟧c (just X) → ⟦ Γ ⟧c  nothing
 weakenC [] p v = v
-weakenC {X} (x ∷ g) p (proj₃ , proj₄) = subst id (wcf-eq {_} {_} {x} {closedC-2 {x} g p}) proj₃ , weakenC  g (closedC-1 {x} g p)  proj₄
+weakenC {X} (x ∷ g) p (proj₃ , proj₄) = subst id (wcf-eq {_} {_} {x} {closedC-2 {x} g p}) proj₃
+ , weakenC  g (closedC-1 {x} g p)  proj₄
 
 
 weaken2C : {Y X : Set} → (Γ : Context) → closedC Γ ≡ true → ⟦ Γ ⟧c (just X) → ⟦ Γ ⟧c  (just Y)
 weaken2C [] p v = v
-weaken2C {Y} {X} (x ∷ g) p (proj₃ , proj₄) = subst id (wcf-eq {just X} {just Y} {x} {p = closedC-2 {x} g p}) proj₃ , weaken2C  g (closedC-1 {x} g p)  proj₄
+weaken2C {Y} {X} (x ∷ g) p (proj₃ , proj₄) = subst id (wcf-eq {just X} {just Y} {x}
+ {p = closedC-2 {x} g p}) proj₃ , weaken2C  g (closedC-1 {x} g p)  proj₄
 
 
 weaken2H : {Y X : Set} → (Φ : HContext) → closedH Φ ≡ true → ⟦ Φ ⟧H (just X) → ⟦ Φ ⟧H  (just Y)
 weaken2H [] r v = tt
-weaken2H {Y} {X} ((x ⇒ x₁) ∷ C) r (a , b) = (λ z → subst id (wcf-eq {just X} {just Y} {x₁} {(closedH-2 {x} {x₁} C r) }) ((a (weaken2C x (closedH-1 {x} {x₁} C r) z)))) , weaken2H C (closedH-3 {x} {x₁} C r) b
+weaken2H {Y} {X} ((x ⇒ x₁) ∷ C) r (a , b) = (λ z → subst id (wcf-eq {just X} {just Y} {x₁}
+ {(closedH-2 {x} {x₁} C r) }) ((a (weaken2C x (closedH-1 {x} {x₁} C r) z))))
+   , weaken2H C (closedH-3 {x} {x₁} C r) b
 
 
 sF : {Y : Set} → (C : Formula) → closed C ≡ true →  ⟦ C ⟧F nothing → ⟦ C ⟧F (just Y)
@@ -295,10 +302,12 @@ sC (x ∷ c) p (A , As) = sF x (closedC-2 {x} c p) A , sC c (closedC-1 {x} c p) 
 
 sH : {Y : Set} → (Φ : HContext) → closedH Φ ≡ true →  ⟦ Φ ⟧H nothing → ⟦ Φ ⟧H (just Y)
 sH [] p v = v
-sH ((x ⇒ x₁) ∷ c) p (a , As) = (λ z → sF x₁ (closedH-2 {x} {x₁} c p) (a (weakenC x (closedH-1 {x} {x₁} c p) z))) , sH c (closedH-3 {x} {x₁} c p) As
+sH ((x ⇒ x₁) ∷ c) p (a , As) = (λ z → sF x₁ (closedH-2 {x} {x₁} c p) (a (weakenC x
+ (closedH-1 {x} {x₁} c p) z))) , sH c (closedH-3 {x} {x₁} c p) As
 
 
-substEq : (A : Formula) → {B : Formula} → closed B ≡ true →  ⟦ substVar B A  ⟧F nothing →  ⟦ A ⟧F (just (⟦ B ⟧F nothing))
+substEq : (A : Formula) → {B : Formula} → closed B ≡ true → ⟦ substVar B A  ⟧F nothing
+ → ⟦ A ⟧F (just (⟦ B ⟧F nothing))
 substEq unit p v = v
 substEq (A ∧ A₁) p (v , w) = substEq A p v , substEq A₁ p w
 substEq (A ∨ A₁) p (inj₁ x) = inj₁ (substEq A p x)
@@ -312,7 +321,8 @@ substEq var {μ B} p v =  v
 substEq (μ A) p v = v 
 
 
-⟦_⟧ : {Φ : HContext}{Γ : Context}{A : Formula} → Φ ⊢ (Γ ⇒ A) → (ρs : Maybe Set) → ⟦ Φ ⟧H ρs →  ⟦ Γ ⟧c ρs → ⟦ A ⟧F ρs
+⟦_⟧ : {Φ : HContext}{Γ : Context}{A : Formula} → Φ ⊢ (Γ ⇒ A) → (ρs : Maybe Set) → ⟦ Φ ⟧H ρs
+ →  ⟦ Γ ⟧c ρs → ⟦ A ⟧F ρs
 ⟦ id-axiom ⟧ ρs v = λ { (x , _) → x }
 ⟦ unit-r ⟧ ρs v = λ _ → tt
 ⟦ unit-l c ⟧ ρs v = λ { (a , b) → ⟦ c ⟧ ρs v b  }
@@ -320,16 +330,24 @@ substEq (μ A) p v = v
 ⟦ ∧-l A ⟧ ρs v = λ  { ((a , b) , c) → ⟦ A ⟧ ρs v (a , b , c ) }
 ⟦ ∨-r₁ {A = A} c ⟧ ρs v = λ g →  inj₁ (⟦ c ⟧ ρs v g)
 ⟦ ∨-r₂ {B = B} c ⟧ ρs v = λ g → inj₂ (⟦ c ⟧ ρs v g)
-⟦ ∨-l {A = A} {B = B} {C = C} a b ⟧ ρs v = λ { (inj₁ a' , g) → ⟦ a ⟧ ρs v  (a' , g) ; (inj₂ b' , g) → ⟦ b ⟧ ρs v  (b' , g) }
+⟦ ∨-l {A = A} {B = B} {C = C} a b ⟧ ρs v
+ = λ { (inj₁ a' , g) → ⟦ a ⟧ ρs v  (a' , g) ; (inj₂ b' , g) → ⟦ b ⟧ ρs v  (b' , g) }
+⟦ μ-r {A = A} c ⟧ (just x) v = λ xs → In let z = ⟦ c ⟧ (just x) v xs in
+ substEq A {μ A } refl (subst id (wcf-eq {just x} {nothing} {substVar (μ A ) A}
+  {closed-subst {A = A} {B = μ A } refl}) z)  
+⟦ μ-r {A = A}   c ⟧ nothing v = λ xs → In let z = (⟦ c ⟧ nothing v xs) in
+ substEq A {(μ A )} refl z
 
-⟦ μ-r {A = A} c ⟧ (just x) v = λ xs → In let z = ⟦ c ⟧ (just x) v xs in substEq A {μ A } refl (subst id (wcf-eq {just x} {nothing} {substVar (μ A ) A} {closed-subst {A = A} {B = μ A } refl}) z)  
-⟦ μ-r {A = A}   c ⟧ nothing v = λ xs → In let z = (⟦ c ⟧ nothing v xs) in substEq A {(μ A )} refl z
-
-⟦ μ-l {A =  A} {C = C} c a b z ⟧ (just x) v = uncurry (Fold λ Y recf recv w → let z = ⟦ c ⟧ (just Y) ((λ { (q1 , q2) → subst id (wcf-eq {_} {_} {C} {a}) (recf q1 w)}) , weaken2H  _ b  v)  (recv , weaken2C  _ z w ) in subst id (wcf-eq {_} {_} {C} {a}) z)
-⟦ μ-l {Φ = Φ}{Γ = Γ}{C = C} c a b z ⟧ nothing v    =  uncurry (Fold λ Y recf recv w →  let z  = ⟦ c ⟧ (just Y) ((λ { (q1 , q2) → sF C a  (recf q1 (weakenC Γ  z q2)) }) , sH _ b v) (recv , sC _ z w) in subst id (wcf-eq {_} {_} {C} {a}) z)
-
-
-
+⟦ μ-l {A =  A} {C = C} c a b z ⟧ (just x) v = uncurry (Fold λ Y recf recv w →
+ let z = ⟦ c ⟧ (just Y)
+      ((λ { (q1 , q2) → subst id (wcf-eq {_} {_} {C} {a}) (recf q1 w)}) , weaken2H  _ b  v)
+      (recv , weaken2C  _ z w ) in
+ subst id (wcf-eq {_} {_} {C} {a}) z)
+⟦ μ-l {Φ = Φ}{Γ = Γ}{C = C} c a b z ⟧ nothing v  =  uncurry (Fold λ Y recf recv w →
+ let z  = ⟦ c ⟧ (just Y)
+       ((λ { (q1 , q2) → sF C a  (recf q1 (weakenC Γ  z q2)) }) , sH _ b v)
+       (recv , sC _ z w) in
+ subst id (wcf-eq {_} {_} {C} {a}) z)
 ⟦ hyp-use (here refl) ⟧ ρs (a , _) = a
 ⟦ hyp-use (there x) ⟧ ρs (_ , h) =  ⟦ hyp-use x ⟧ ρs h  
 ⟦ contr c ⟧ ρs v = λ { (a , g) → ⟦ c ⟧ ρs v (a , a , g) }
