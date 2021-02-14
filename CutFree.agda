@@ -129,8 +129,8 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
 
   exchng  : ∀ {n : ℕ}{Φ : HContext n} {Γ Γ₁ Γ₂ : Context n} {A : Formula n}{C : Formula n}
             → Γ ≡  Γ₁ ++ Γ₂
+            → n , Φ ⊢ A ∷ Γ ⇒ C            
             → n , Φ ⊢ Γ₁ ++ A ∷ Γ₂ ⇒ C
-            → n , Φ ⊢ A ∷ Γ ⇒ C
 
 
 open import Data.Product
