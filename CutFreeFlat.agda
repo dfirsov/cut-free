@@ -10,6 +10,7 @@ open import Data.Nat
 open import Data.Fin hiding (_+_)
 open import Data.List
 open import Data.List.Any.Membership.Propositional using (_∈_)
+
 open import Data.List.Any  hiding (map)
 open import Data.Vec hiding (map; _++_; _∈_)
 open import Data.Unit hiding (_≟_)
@@ -32,6 +33,11 @@ data Formula : Set where
   _∨_  : Formula → Formula → Formula 
   var  : Formula
   μ    : Formula →  Formula
+
+-- decidable equality
+postulate
+  _≟f_ : (a b : Formula) → Dec (a ≡ b)
+
 
 Context : Set
 Context = List Formula
@@ -184,6 +190,9 @@ In m = IN id m
 Fold : {F : Set → Set}{C : Set} → ((Y : Set) → (Y → C) → F Y → C) → Mu F  → C
 Fold {F} alg (IN {X} f v) = alg X (Fold alg ∘ f) v 
 
+
+
+
 MuF2G : {F G : Set → Set } → (∀ (Y : Set) → F Y → G Y) →  Mu F → Mu G
 MuF2G {F} {G} conv mf = Fold ( λ X f v → IN {G} f (conv  X v)) mf
 
@@ -288,6 +297,7 @@ z = In (inj₁ tt)
 s : Nat → Nat
 s n = In (inj₂ n)
 
+
 Nat2ℕ : Nat → ℕ
 Nat2ℕ (IN f (inj₁ tt)) = 0
 Nat2ℕ (IN f (inj₂ y)) = suc (Nat2ℕ (f y))
@@ -382,6 +392,23 @@ cntFree (contr t) = false
 cntFree (weakn t) = cntFree t
 cntFree (exchng t d ) = cntFree d
 
+μFree : {A : Formula}{Φ : HContext}{Γ : Context} → Φ ⊢ Γ ⇒ A → Bool
+μFree id-axiom = true
+μFree unit-r = true
+μFree (unit-l t) = μFree t
+μFree (∧-r t t₁) = μFree t & μFree t₁
+μFree (∧-l t) = μFree t
+μFree (∨-r₁ t) = μFree t
+μFree (∨-r₂ t) = μFree t
+μFree (∨-l t t₁) = μFree t & μFree t₁
+μFree (μ-r  t) = true
+μFree (μ-l t x x₁ x₂) = false
+μFree (hyp-use x) = true
+μFree (contr t) = μFree t
+μFree (weakn t) = μFree t
+μFree (exchng t d ) = μFree d
+
+
 BoolRaw : Formula
 BoolRaw = unit ∨ unit
 
@@ -404,8 +431,71 @@ zz prf n = ⟦ prf ⟧  nothing tt (n , tt)
 
 
 
+fWF : (A : Formula) → Bool
+fWF (unit ∨ var) = true
+fWF (μ (unit ∨ var))= true
+fWF var = true
+fWF _ =  false
+
+cWF : (Γ : Context) → Set
+cWF [] = ⊤
+cWF (A ∷ Γ) = fWF A ≡ true × cWF Γ
+
+toValF : (A : Formula) → Nat → fWF A ≡ true → ⟦ A ⟧F (just Nat)
+toValF unit n ()
+toValF (A ∧ A₁) n ()
+toValF (unit ∨ var) n refl = inj₂ n
+toValF (_ ∨ _) n prf = {!prf!}
+toValF var n prf = n
+toValF (μ (unit ∨ var)) n prf = s n
+toValF (μ _) = {!!}
+
+toValC : (Γ : Context) → (n : Nat) → cWF Γ → ⟦ Γ ⟧C (just Nat)
+toValC [] n t = t
+toValC (x ∷ Γ) n t = toValF x n (proj₁ t) , toValC Γ n (proj₂ t)
+
+hWF : (Φ : HContext) → Set
+hWF [] = ⊤
+hWF ((x ⇒ x₁) ∷ []) = cWF x
+hWF ((x ⇒ x₁) ∷ x₂ ∷ Φ) = ⊥
+
+sucItAll : {Γ' : Context} → cWF Γ' →  ⟦ Γ' ⟧C (just Nat) → ⟦ Γ' ⟧C (just Nat)
+sucItAll {[]} d n = n
+sucItAll {(μ (unit ∨ var)) ∷ Γ'} d  (n , n') = s n , sucItAll {Γ'} (proj₂ d) n' 
+sucItAll {unit ∨ var ∷ Γ'} d (inj₁ x , n') = inj₂ z , sucItAll {Γ'} (proj₂ d) n' 
+sucItAll {unit ∨ var ∷ Γ'} d (inj₂ y , n') = inj₂ (s y) , sucItAll {Γ'} (proj₂ d) n'
+sucItAll {var ∷ Γ'} d  (n , n') = s n , sucItAll {Γ'} (proj₂ d) n'
+sucItAll {z ∷ Γ'} d  n = n -- impossible
+
+zz-lem : {Γ Γ' : Context}{n : Nat}
+ → (cwf : cWF Γ)
+ → (hwf : hWF ((Γ' ⇒ BoolRaw) ∷ [])) 
+ → (d :  ((Γ' ⇒ BoolRaw) ∷ []) ⊢ Γ ⇒ BoolRaw) → (true ≡ true)
+ → (φ : ⟦ ((Γ' ⇒ BoolRaw) ∷ []) ⟧H (just Nat))
+   → ⟦ d ⟧ (just Nat) ((λ g → (proj₁ φ) (sucItAll hwf g) ) , tt) ((toValC Γ (n) cwf) ) ≡ ⟦ d ⟧ (just Nat) φ (toValC Γ (s n) cwf)
+zz-lem cwf hwf id-axiom p φ = {!!}
+zz-lem cwf hwf (unit-l d) p φ = {!!}
+zz-lem cwf hwf (∧-l d) p φ = {!!}
+zz-lem cwf hwf (∨-r₁ d) p φ = {!!}
+zz-lem cwf hwf (∨-r₂ d) p φ = refl
+zz-lem cwf hwf (∨-l d d₁) p φ = {!!}
+zz-lem cwf hwf (μ-l d x x₁ x₂) p φ = {!!}
+zz-lem {[]} cwf hwf (hyp-use x) p φ = {!!}
+
+zz-lem {Γ' = (μ (unit ∨ var)) ∷ Γ'} cwf hwf (hyp-use (here refl)) p (φ , tt) rewrite p = {!!}
+zz-lem {Γ' = _} cwf hwf (hyp-use (here refl)) p (φ , tt)  = {!!}
+
+zz-lem cwf hwf (hyp-use (there ())) p φ
+zz-lem {Γ}{Γ'}{n} cwf hwf (contr {A = A} d) p φ  =  {!!} -- rewrite zz-lem {Γ} {_} {n} (proj₁ cwf , proj₁ cwf , proj₂ cwf) hwf d p  φ = {!!}
+zz-lem cwf hwf (weakn d) p φ = {!!}
+zz-lem cwf hwf (exchng x d) p φ = {!!}
+
+
+{-
+
 {-# TERMINATING #-} -- or add induction on proof length
-zz-lem : {n : Nat} → (d : [] ⊢ NatRaw ∷ [] ⇒ BoolRaw) → cntFree d ≡ true → zz d (s (s (n))) ≡ zz d (s n)
+zz-lem : {n : Nat} → (d : [] ⊢ NatRaw ∷ [] ⇒ BoolRaw)
+   → cntFree d ≡ true → zz d (s (s (n))) ≡ zz d (s n)
 zz-lem (∨-r₁ d) p = refl
 zz-lem (∨-r₂ d) p = refl
 zz-lem (hyp-use ()) p
@@ -419,13 +509,16 @@ zz-lem (μ-l (∨-l d (∨-r₁ d₁)) x x₁ x₂) p = refl
 zz-lem (μ-l (∨-l d (∨-r₂ d₁)) x x₁ x₂) p = refl
 zz-lem (μ-l (∨-l d (hyp-use (here refl))) x x₁ x₂) p = refl
 zz-lem (μ-l (∨-l d (hyp-use (there ()))) x x₁ x₂) p
-zz-lem (μ-l (∨-l d (contr d₁)) x x₁ x₂) p = ⊥-elim (&-comm p)
+zz-lem (μ-l (∨-l d (contr d₁)) x x₁ x₂) p =  ⊥-elim (&-comm p)
 zz-lem (μ-l (∨-l d (weakn d₁)) x x₁ x₂) p = refl
-zz-lem (μ-l (∨-l d (exchng herex d₁)) x x₁ x₂) p  = zz-lem (μ-l (∨-l d d₁) x x₁ x₂) p
+zz-lem (μ-l (∨-l d (exchng herex d₁)) x x₁ x₂) p
+ = zz-lem (μ-l (∨-l d d₁) x x₁ x₂) p
 zz-lem (μ-l (∨-l d (exchng (therex ()) d₁)) x x₁ x₂) p
 zz-lem (μ-l (hyp-use (here ())) x x₁ x₂) p
 zz-lem (μ-l (hyp-use (there ())) x x₁ x₂) p
-zz-lem (μ-l (contr d) x x₁ x₂) ()
+zz-lem (μ-l (contr d) x x₁ x₂) () 
 zz-lem (μ-l (weakn d) x x₁ x₂) p = refl
 zz-lem (μ-l (exchng herex d) x x₁ x₂) p = zz-lem ((μ-l d x x₁ x₂)) p
 zz-lem (μ-l (exchng (therex ()) d) x x₁ x₂) p
+
+-}
