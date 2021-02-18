@@ -1,0 +1,15 @@
+
+
+Environments:
+
+  ●  ⊤ : no recursion
+
+  ● Maybe Set : one recursion (?)
+
+  ● Maybe Set : multiple recursion (map (2*))
+
+  ● Vec Set n : many simultaneous recursions
+
+
+Most general environment Vec Set n
+

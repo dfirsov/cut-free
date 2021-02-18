@@ -441,23 +441,37 @@ cWF : (Γ : Context) → Set
 cWF [] = ⊤
 cWF (A ∷ Γ) = fWF A ≡ true × cWF Γ
 
-toValF : (A : Formula) → Nat → fWF A ≡ true → ⟦ A ⟧F (just Nat)
-toValF unit n ()
-toValF (A ∧ A₁) n ()
-toValF (unit ∨ var) n refl = inj₂ n
-toValF (_ ∨ _) n prf = {!prf!}
-toValF var n prf = n
-toValF (μ (unit ∨ var)) n prf = s n
-toValF (μ _) = {!!}
 
-toValC : (Γ : Context) → (n : Nat) → cWF Γ → ⟦ Γ ⟧C (just Nat)
-toValC [] n t = t
-toValC (x ∷ Γ) n t = toValF x n (proj₁ t) , toValC Γ n (proj₂ t)
+ρwf : Maybe Set → Set
+ρwf (just X) = X ≡ Nat
+ρwf nothing = ⊤
+
+toValF : (ρ : Maybe Set) → ρwf ρ → (A : Formula) → Nat → fWF A ≡ true → ⟦ A ⟧F ρ
+toValF (just .Nat) refl unit n ()
+toValF (just .Nat) refl  (A ∧ A₁) n ()
+toValF (just .Nat) refl (unit ∨ var) n _ = inj₂ n
+toValF (just .Nat) refl (_ ∨ _) n prf = {!prf!}
+toValF (just .Nat) refl var n prf = n
+toValF (just .Nat) refl (μ (unit ∨ var)) n prf = s n
+toValF (just .Nat) refl (μ _) = {!!}
+toValF nothing tt unit n () 
+toValF nothing tt (c ∧ c₁) n ()
+toValF nothing tt (unit ∨ var) n _ = inj₂ tt -- can it happen?
+toValF nothing tt (_ ∨ _) n = {!!}
+toValF nothing tt var n _ = tt -- can it happen
+toValF nothing tt (μ (unit ∨ var)) n _ = s n
+toValF nothing tt (μ _) n = {!!}
+
+
+toValC : (ρ : Maybe Set) → ρwf ρ → (Γ : Context) → (n : Nat) → cWF Γ → ⟦ Γ ⟧C ρ
+toValC ρ ρwf [] n t = t
+toValC ρ ρwf (x ∷ Γ) n t = toValF ρ ρwf x n (proj₁ t) , toValC ρ ρwf Γ n (proj₂ t)
 
 hWF : (Φ : HContext) → Set
 hWF [] = ⊤
 hWF ((x ⇒ x₁) ∷ []) = cWF x
 hWF ((x ⇒ x₁) ∷ x₂ ∷ Φ) = ⊥
+
 
 sucItAll : {Γ' : Context} → cWF Γ' →  ⟦ Γ' ⟧C (just Nat) → ⟦ Γ' ⟧C (just Nat)
 sucItAll {[]} d n = n
@@ -467,58 +481,110 @@ sucItAll {unit ∨ var ∷ Γ'} d (inj₂ y , n') = inj₂ (s y) , sucItAll {Γ'
 sucItAll {var ∷ Γ'} d  (n , n') = s n , sucItAll {Γ'} (proj₂ d) n'
 sucItAll {z ∷ Γ'} d  n = n -- impossible
 
-zz-lem : {Γ Γ' : Context}{n : Nat}
+-- hyp-free
+zz-lem'' : {Γ Γ' : Context}{H : HContext}{n : Nat}
  → (cwf : cWF Γ)
+ → (d :  H ⊢ Γ ⇒ BoolRaw) → (true ≡ true)
+ → (φ φ' : ⟦ H ⟧H (just Nat))
+ → ⟦ d ⟧ (just Nat)  φ (toValC (just Nat) refl Γ  n cwf) ≡ ⟦ d ⟧ (just Nat) φ' ((toValC (just Nat) refl Γ  (s n) cwf))
+zz-lem'' (() , proj₄) id-axiom p ph1 ph2
+zz-lem'' (() , proj₄) (unit-l d) p ph1 ph2
+zz-lem'' (() , proj₄) (∧-l d) p ph1 ph2
+zz-lem'' cwf (∨-r₁ d) p ph1 ph2 = refl
+zz-lem'' cwf (∨-r₂ d) p ph1 ph2 = refl
+zz-lem'' cwf (∨-l {A = unit} {B = var} d d₁) p ph1 ph2 = zz-lem'' (refl , proj₂ cwf) d₁ refl ph1 ph2
+
+zz-lem'' cwf (∨-l d d₁) p ph1 ph2 = {!!}
+zz-lem'' cwf (μ-l d x x₁ x₂) p ph1 ph2 = {!!}
+zz-lem'' cwf (hyp-use x) p ph1 ph2 = {!!}
+zz-lem'' cwf (contr d) p ph1 ph2 = {!!}
+zz-lem'' cwf (weakn d) p ph1 ph2 = {!!}
+zz-lem'' cwf (exchng x d) p ph1 ph2 = {!!}
+
+-- hyp-full juhtum
+zz-lem : {Γ Γ' : Context}{n : Nat}
+ → (cwf' : cWF Γ')   
  → (hwf : hWF ((Γ' ⇒ BoolRaw) ∷ [])) 
  → (d :  ((Γ' ⇒ BoolRaw) ∷ []) ⊢ Γ ⇒ BoolRaw) → (true ≡ true)
  → (φ : ⟦ ((Γ' ⇒ BoolRaw) ∷ []) ⟧H (just Nat))
-   → ⟦ d ⟧ (just Nat) ((λ g → (proj₁ φ) (sucItAll hwf g) ) , tt) ((toValC Γ (n) cwf) ) ≡ ⟦ d ⟧ (just Nat) φ (toValC Γ (s n) cwf)
-zz-lem cwf hwf id-axiom p φ = {!!}
-zz-lem cwf hwf (unit-l d) p φ = {!!}
-zz-lem cwf hwf (∧-l d) p φ = {!!}
-zz-lem cwf hwf (∨-r₁ d) p φ = {!!}
-zz-lem cwf hwf (∨-r₂ d) p φ = refl
-zz-lem cwf hwf (∨-l d d₁) p φ = {!!}
-zz-lem cwf hwf (μ-l d x x₁ x₂) p φ = {!!}
-zz-lem {[]} cwf hwf (hyp-use x) p φ = {!!}
+ → (cn1 : ⟦ Γ ⟧C (just Nat))
+ → (cn2 : ⟦ Γ' ⟧C (just Nat))
+ → ⟦ d ⟧ (just Nat)  φ cn1 ≡ (proj₁ φ) cn2
+zz-lem  cwf' hwf (μ-l d x x₁ x₂) p φ = {!!}
+zz-lem  cwf' hwf id-axiom p φ cn1 cn2 = {!!} -- no way
+zz-lem  cwf' hwf (∨-r₁ d) p φ = {!!}
+zz-lem  cwf' hwf (∨-r₂ d) φ = {!!}
 
-zz-lem {Γ' = (μ (unit ∨ var)) ∷ Γ'} cwf hwf (hyp-use (here refl)) p (φ , tt) rewrite p = {!!}
-zz-lem {Γ' = _} cwf hwf (hyp-use (here refl)) p (φ , tt)  = {!!}
+zz-lem {n = n} cwf' hwf (unit-l d) p φ (proj₃ , proj₄) cn2
+   rewrite p = zz-lem {n = n} cwf' cwf' d p φ proj₄ cn2
+zz-lem {n = n}  cwf' hwf (∧-l d) p φ cn1 cn2
+   = zz-lem {n = n} cwf' cwf' d refl φ ( proj₁ (proj₁ cn1) ,  proj₂ (proj₁ cn1) , (proj₂ cn1)) cn2
+zz-lem {Γ = .(A ∨ B) ∷ Γ} {Γ'} {n}  cwf' hwf (∨-l {A = A} {B = B} d d₁) p φ (inj₁ x , proj₄) cn2 = zz-lem {A ∷ Γ} {Γ'} {n} cwf' cwf' d refl φ (x , proj₄) cn2  
 
-zz-lem cwf hwf (hyp-use (there ())) p φ
-zz-lem {Γ}{Γ'}{n} cwf hwf (contr {A = A} d) p φ  =  {!!} -- rewrite zz-lem {Γ} {_} {n} (proj₁ cwf , proj₁ cwf , proj₂ cwf) hwf d p  φ = {!!}
-zz-lem cwf hwf (weakn d) p φ = {!!}
-zz-lem cwf hwf (exchng x d) p φ = {!!}
+zz-lem {Γ = .(A ∨ B) ∷ Γ} {Γ'} {n} cwf' hwf (∨-l {A = A} {B = B} d d₁) p φ (inj₂ y , proj₄) cn2 = zz-lem {B ∷ Γ} {Γ'} {n} cwf' cwf' d₁ refl φ (y , proj₄) cn2  
+zz-lem  cwf' hwf (hyp-use (here refl)) p φ cn1 cn2 = {!!}
+zz-lem  cwf' hwf (hyp-use (there ())) φ
+zz-lem  {n = n} cwf' hwf (contr d) p φ cn1 cn2 = zz-lem {n = n}  cwf' cwf' d refl  _ (proj₁ cn1 , proj₁ cn1 , proj₂ cn1) cn2
+zz-lem {n = n}  cwf' hwf (weakn d) p φ cn1 cn2 = zz-lem {n = n}   cwf'  cwf' d refl  _ (proj₂ cn1) cn2
+zz-lem {n = n}  cwf' hwf (exchng x d) p φ cn1 cn2 = zz-lem {n = n}  cwf' cwf' d refl φ ({!!} , {!!}) cn2
 
 
-{-
 
-{-# TERMINATING #-} -- or add induction on proof length
-zz-lem : {n : Nat} → (d : [] ⊢ NatRaw ∷ [] ⇒ BoolRaw)
-   → cntFree d ≡ true → zz d (s (s (n))) ≡ zz d (s n)
-zz-lem (∨-r₁ d) p = refl
-zz-lem (∨-r₂ d) p = refl
-zz-lem (hyp-use ()) p
-zz-lem (contr d) ()
-zz-lem (weakn d) p = refl
-zz-lem (exchng herex d) p = zz-lem d p
-zz-lem (exchng (therex ()) d) p
-zz-lem (μ-l (∨-r₁ d) x x₁ x₂) p = refl
-zz-lem (μ-l (∨-r₂ d) x x₁ x₂) p = refl
-zz-lem (μ-l (∨-l d (∨-r₁ d₁)) x x₁ x₂) p = refl
-zz-lem (μ-l (∨-l d (∨-r₂ d₁)) x x₁ x₂) p = refl
-zz-lem (μ-l (∨-l d (hyp-use (here refl))) x x₁ x₂) p = refl
-zz-lem (μ-l (∨-l d (hyp-use (there ()))) x x₁ x₂) p
-zz-lem (μ-l (∨-l d (contr d₁)) x x₁ x₂) p =  ⊥-elim (&-comm p)
-zz-lem (μ-l (∨-l d (weakn d₁)) x x₁ x₂) p = refl
-zz-lem (μ-l (∨-l d (exchng herex d₁)) x x₁ x₂) p
- = zz-lem (μ-l (∨-l d d₁) x x₁ x₂) p
-zz-lem (μ-l (∨-l d (exchng (therex ()) d₁)) x x₁ x₂) p
-zz-lem (μ-l (hyp-use (here ())) x x₁ x₂) p
-zz-lem (μ-l (hyp-use (there ())) x x₁ x₂) p
-zz-lem (μ-l (contr d) x x₁ x₂) () 
-zz-lem (μ-l (weakn d) x x₁ x₂) p = refl
-zz-lem (μ-l (exchng herex d) x x₁ x₂) p = zz-lem ((μ-l d x x₁ x₂)) p
-zz-lem (μ-l (exchng (therex ()) d) x x₁ x₂) p
+mutual
+  zz-lem' : {Γ  : Context}{n : Nat}
+   → (cwf : cWF Γ)
+   → (d :  [] ⊢ Γ ⇒ BoolRaw) → (true ≡ true)
+   → ⟦ d ⟧ (just Nat) tt (toValC (just Nat) refl Γ n cwf ) ≡ ⟦ d ⟧ (just Nat) tt (toValC (just Nat) refl Γ (s n) cwf)
+  zz-lem' cwf id-axiom = {!!}
+  zz-lem' cwf (unit-l d) = {!!}
+  zz-lem' cwf (∧-l id-axiom) = {!!}
+  zz-lem' cwf (∧-l (unit-l d)) = {!!}
+  zz-lem' cwf (∧-l (∧-l d)) = {!!}
+  zz-lem' cwf (∧-l (∨-r₁ d)) = {!!}
+  zz-lem' cwf (∧-l (∨-r₂ d)) = {!!}
+  zz-lem' cwf (∧-l (∨-l d d₁)) = {!!}
+  zz-lem' cwf (∧-l (μ-l d x x₁ x₂)) = {!!}
+  zz-lem' cwf (∧-l (hyp-use x)) = {!!}
+  zz-lem' cwf (∧-l (contr d)) = {!!}
+  zz-lem' cwf (∧-l (weakn d)) = {!!}
+  zz-lem' cwf (∧-l (exchng x d)) = {!!}
+  zz-lem' cwf (∨-r₁ d) = {!!}
+  zz-lem' cwf (∨-r₂ d) = {!!}
+  zz-lem' cwf (∨-l d d₁) = {!!}
+  zz-lem' {.(μ (unit ∨ var) ∷ [])} {IN x₃ (inj₁ tt)} cwf (μ-l {.[]} {[]} {unit ∨ var} {.(unit ∨ unit)} d x x₁ x₂) p   with zz-lem {unit ∨ var ∷ []} {var ∷ []} {(IN (λ x₄ → x₄) (inj₂ (IN x₃ (inj₁ tt))))}  cwf (refl , tt) d refl ((λ q →
+          Fold
+          (λ Y rf rv w →
+             ⟦ d ⟧ (just Y) ((λ q₁ → rf (proj₁ q₁) w) , tt) (rv , w))
+          (proj₁ q) (proj₂ cwf))
+       , tt) {!!} {!!}
+    | zz-lem {unit ∨ var ∷ []} {var ∷ []}  {IN x₃ (inj₁ tt)} cwf cwf  d refl ((λ q →
+          Fold
+          (λ Y rf rv w →
+             ⟦ d ⟧ (just Y) ((λ q₁ → rf (proj₁ q₁) w) , tt) (rv , w))
+          (proj₁ q) (proj₂ cwf))
+       , tt)  {!!} {!!}
+  ... | o1 | o2   = {!!} -- refl
+    
+  zz-lem' {.(μ (unit ∨ var) ∷ [])} {IN x₃ (inj₂ y)} cwf (μ-l {.[]} {[]} {unit ∨ var} {.(unit ∨ unit)} d x x₁ x₂) p with zz-lem {unit ∨ var ∷ []} {var ∷ []} {(IN (λ x₄ → x₄) (inj₂ (IN x₃ (inj₂ y))))} cwf (refl , tt) d refl ((λ q →
+          Fold
+          (λ Y rf rv w →
+             ⟦ d ⟧ (just Y) ((λ q₁ → rf (proj₁ q₁) w) , tt) (rv , w))
+          (proj₁ q) (proj₂ cwf)) , tt)
+        | zz-lem {unit ∨ var ∷ []} {var ∷ []} {IN x₃ (inj₂ y)}  cwf (refl , tt) d refl ((λ q →
+          Fold
+          (λ Y rf rv w →
+             ⟦ d ⟧ (just Y) ((λ q₁ → rf (proj₁ q₁) w) , tt) (rv , w))
+          (proj₁ q) (proj₂ cwf))
+       , tt)
+  ... | o1 | o2 = {!!} -- refl
 
--}
+  zz-lem' cwf (μ-l d x x₁ x₂) p = {!!}
+
+  zz-lem' cwf (hyp-use x) = {!!}
+  zz-lem' cwf (contr d) = {!!}
+  zz-lem' cwf (weakn d) = {!!}
+  zz-lem' cwf (exchng x d) = {!!}
+
+     
+
+
