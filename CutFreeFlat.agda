@@ -481,25 +481,144 @@ sucItAll {unit ∨ var ∷ Γ'} d (inj₂ y , n') = inj₂ (s y) , sucItAll {Γ'
 sucItAll {var ∷ Γ'} d  (n , n') = s n , sucItAll {Γ'} (proj₂ d) n'
 sucItAll {z ∷ Γ'} d  n = n -- impossible
 
--- hyp-free
-zz-lem'' : {Γ Γ' : Context}{H : HContext}{n : Nat}
+sucItAll' : {Γ' : Context} → cWF Γ' →  ⟦ Γ' ⟧C (just Nat) → Bool
+sucItAll' {[]} d tt = true
+sucItAll' {μ (unit ∨ var) ∷ Γ'} d (IN x (inj₁ x₁) , n') = false
+sucItAll' {μ (unit ∨ var) ∷ Γ'} d (IN x (inj₂ y) , n') = sucItAll' {Γ'} (proj₂ d) n'
+sucItAll' {unit ∨ var ∷ Γ'} d (inj₁ x , n') = false
+sucItAll' {unit ∨ var ∷ Γ'} d (inj₂ (IN x (inj₁ x₁)) , n') = true
+sucItAll' {unit ∨ var ∷ Γ'} d (inj₂ (IN x (inj₂ y)) , n') = sucItAll' {Γ'} (proj₂ d) n'
+sucItAll' {var ∷ Γ'} d (IN x (inj₁ x₁) , n') = false
+sucItAll' {var ∷ Γ'} d (IN x (inj₂ y) , n') = sucItAll' {Γ'} (proj₂ d) n'
+sucItAll' {z ∷ Γ'} d  n = false
+
+Γgood : (Γ : Context)  →  (cn : ⟦ Γ ⟧C (just Nat)) → Bool
+Γgood (unit ∨ var ∷ G) (inj₁ x , proj₄) = false
+Γgood (unit ∨ var ∷ G) (inj₂ y , proj₄) = Γgood G proj₄
+Γgood (x ∷ G) (y , proj₄) = Γgood G proj₄
+Γgood [] _ = true
+
+
+-- hyp-free, μ-l free
+zz-lem'' : {Γ : Context}{H : HContext}
  → (cwf : cWF Γ)
  → (d :  H ⊢ Γ ⇒ BoolRaw) → (true ≡ true)
  → (φ φ' : ⟦ H ⟧H (just Nat))
- → ⟦ d ⟧ (just Nat)  φ (toValC (just Nat) refl Γ  n cwf) ≡ ⟦ d ⟧ (just Nat) φ' ((toValC (just Nat) refl Γ  (s n) cwf))
-zz-lem'' (() , proj₄) id-axiom p ph1 ph2
-zz-lem'' (() , proj₄) (unit-l d) p ph1 ph2
-zz-lem'' (() , proj₄) (∧-l d) p ph1 ph2
-zz-lem'' cwf (∨-r₁ d) p ph1 ph2 = refl
-zz-lem'' cwf (∨-r₂ d) p ph1 ph2 = refl
-zz-lem'' cwf (∨-l {A = unit} {B = var} d d₁) p ph1 ph2 = zz-lem'' (refl , proj₂ cwf) d₁ refl ph1 ph2
+ → (cn1 : ⟦ Γ ⟧C (just Nat))
+ → (cn2 : ⟦ Γ ⟧C (just Nat))
+ → sucItAll cwf cn1 ≡ cn2 -- one suc of other
+ → Γgood Γ cn1 ≡ true 
+ → ⟦ d ⟧ (just Nat)  φ cn1 ≡ ⟦ d ⟧ (just Nat) φ' cn2
+zz-lem'' (() , proj₄) id-axiom p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (unit-l d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (∧-l d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' cwf (∨-r₁ d) p ph1 ph2 cn1 cn2 sprf gprf = refl
+zz-lem'' cwf (∨-r₂ d) p ph1 ph2 cn1 cn2 sprf gprf = refl
+zz-lem'' cwf (contr {A = unit ∨ var} d) p ph1 ph2 (inj₁ x , proj₄) cn2 sprf ()
+zz-lem'' cwf (contr {A = unit ∨ var} d) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) () gprf
+zz-lem'' cwf (contr {A = unit ∨ var} d) p ph1 ph2 (inj₂ y , proj₄) (inj₂ .(IN (λ x → x) (inj₂ y)) , .(sucItAll (proj₂ cwf) proj₄)) refl gprf rewrite p
+  = zz-lem'' (refl , refl , proj₂ cwf) d p ph1 ph2 (inj₂ y , inj₂ y , proj₄) (inj₂ (s y) , inj₂ (s y) , (sucItAll (proj₂ cwf) proj₄)) refl gprf
+zz-lem'' (() , proj₄) (contr {A = unit} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = A ∧ A₁} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = unit ∨ unit} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = unit ∨ (A₁ ∧ A₂)} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = unit ∨ (A₁ ∨ A₂)} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = unit ∨ μ A₁} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = (A ∧ A₂) ∨ A₁} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = (A ∨ A₂) ∨ A₁} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = var ∨ A₁} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ A ∨ A₁} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (proj₃ , proj₄) (contr {A = var} d) p ph1 ph2 (proj₅ , proj₆) (.(IN (λ x → x) (inj₂ proj₅)) , .(sucItAll proj₄ proj₆)) refl gprf
+  = zz-lem''  (refl , refl , proj₄) d refl ph1 ph2 (proj₅ , proj₅ , proj₆) (s proj₅ , s proj₅ , (sucItAll proj₄ proj₆)) refl gprf 
+zz-lem'' (() , proj₄) (contr {A = μ unit} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ (A ∧ A₁)} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ (unit ∨ unit)} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ (unit ∨ (A₁ ∧ A₂))} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ (unit ∨ (A₁ ∨ A₂))} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (proj₃ , proj₄) (contr {A = μ (unit ∨ var)} d) p ph1 ph2 (proj₅ , proj₆) (.(IN (λ x → x) (inj₂ proj₅)) , .(sucItAll proj₄ proj₆)) refl gprf
+  = zz-lem'' (refl , refl , proj₄) d refl ph1 ph2 (proj₅ , proj₅ , proj₆) (s proj₅ , s proj₅ , (sucItAll proj₄ proj₆)) refl gprf
+zz-lem'' (() , proj₄) (contr {A = μ (unit ∨ μ A₁)} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ ((A ∧ A₂) ∨ A₁)} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ ((A ∨ A₂) ∨ A₁)} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ (var ∨ A₁)} d) p ph1 ph2 cn1 cn2 sprf gprf 
+zz-lem'' (() , proj₄) (contr {A = μ (μ A ∨ A₁)} d) p ph1 ph2 cn1 cn2 sprf gprf 
+zz-lem'' (() , proj₄) (contr {A = μ var} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₄) (contr {A = μ (μ A)} d) p ph1 ph2 cn1 cn2 sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = unit} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = A ∧ A₁} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = unit ∨ unit} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = unit ∨ (A₁ ∧ A₂)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = unit ∨ (A₁ ∨ A₂)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = unit ∨ μ A₁} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = (A ∧ A₂) ∨ A₁} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = (A ∨ A₂) ∨ A₁} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = var ∨ A₁} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = μ A ∨ A₁} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = μ unit} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = μ (A ∧ A₁)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = μ (unit ∨ unit)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = μ (unit ∨ (A₁ ∧ A₂))} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = μ (unit ∨ (A₁ ∨ A₂))} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = μ (unit ∨ μ A₁)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = μ ((A ∧ A₂) ∨ A₁)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = μ ((A ∨ A₂) ∨ A₁)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf
+zz-lem'' (() , proj₈) (weakn {A = μ (var ∨ A₁)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = μ (μ A ∨ A₁)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = μ var} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' (() , proj₈) (weakn {A = μ (μ A)} d) p ph1 ph2 (proj₃ , proj₄) (proj₅ , proj₆) sprf gprf 
+zz-lem'' cwf (weakn {A = unit ∨ var} d) p ph1 ph2 (inj₁ x , proj₄) (proj₅ , proj₆) sprf ()
 
-zz-lem'' cwf (∨-l d d₁) p ph1 ph2 = {!!}
-zz-lem'' cwf (μ-l d x x₁ x₂) p ph1 ph2 = {!!}
-zz-lem'' cwf (hyp-use x) p ph1 ph2 = {!!}
-zz-lem'' cwf (contr d) p ph1 ph2 = {!!}
-zz-lem'' cwf (weakn d) p ph1 ph2 = {!!}
-zz-lem'' cwf (exchng x d) p ph1 ph2 = {!!}
+zz-lem'' cwf (weakn {A = unit ∨ var} d) p ph1 ph2 (inj₂ y , proj₄) (.(inj₂ (IN (λ x → x) (inj₂ y))) , .(sucItAll (proj₂ cwf) proj₄)) refl gprf = zz-lem'' (proj₂ cwf) d refl ph1 ph2 proj₄ _ refl gprf
+zz-lem'' cwf (weakn {A = var} d) p ph1 ph2 (proj₃ , proj₄) (.(IN (λ x → x) (inj₂ proj₃)) , .(sucItAll (proj₂ cwf) proj₄)) refl gprf = zz-lem'' (proj₂ cwf) d refl ph1 ph2 proj₄ ((sucItAll (proj₂ cwf) proj₄)) refl gprf
+zz-lem'' cwf (weakn {A = μ (unit ∨ var)} d) p ph1 ph2 (proj₃ , proj₄) (.(IN (λ x → x) (inj₂ proj₃)) , .(sucItAll (proj₂ cwf) proj₄)) refl gprf = zz-lem'' (proj₂ cwf) d refl ph1 ph2 proj₄ ((sucItAll (proj₂ cwf) proj₄)) refl gprf
+
+zz-lem'' cwf (exchng x d) p ph1 ph2 cn1 cn2 sprf gprf = zz-lem'' ({!!} , {!!}) d p ph1 ph2 (f-lemm   _ _ x cn1 , G-lemm _ _ x cn1) ((f-lemm   _ _ x cn2 , G-lemm _ _ x cn2)) {!!} {!!}
+
+
+zz-lem'' (proj₃ , proj₆) (∨-l {A = unit} {var} d d₁) p ph1 ph2 (inj₁ x , proj₄) _ sprf ()
+zz-lem'' (() , proj₆) (∨-l {A = unit} {unit} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₁ x₁ , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {B ∧ B₁} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₁ x₁ , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {B ∨ B₁} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₁ x₁ , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {μ B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₁ x₁ , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = A ∧ A₁} {B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₁ x₁ , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = A ∨ A₁} {B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₁ x₁ , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = var} {B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₁ x₁ , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = μ A} {B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₁ x₁ , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {unit} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₂ y , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {B ∧ B₁} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₂ y , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {B ∨ B₁} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₂ y , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {μ B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₂ y , proj₅) sprf gprf 
+zz-lem'' (() , proj₆) (∨-l {A = A ∧ A₁} {B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₂ y , proj₅) sprf gprf 
+zz-lem'' (() , proj₆) (∨-l {A = A ∨ A₁} {B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₂ y , proj₅) sprf gprf 
+zz-lem'' (() , proj₆) (∨-l {A = var} {B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₂ y , proj₅) sprf gprf 
+zz-lem'' (() , proj₆) (∨-l {A = μ A} {B} d d₁) p ph1 ph2 (inj₁ x , proj₄) (inj₂ y , proj₅) sprf gprf
+zz-lem'' cwf (∨-l {A = unit} {var} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) () gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {unit} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {B ∧ B₁} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {B ∨ B₁} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = unit} {μ B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = A ∧ A₁} {B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = A ∨ A₁} {B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) sprf gprf
+zz-lem'' (() , proj₆) (∨-l {A = var} {B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) sprf gprf 
+zz-lem'' (() , proj₆) (∨-l {A = μ A} {B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₁ x , proj₅) sprf gprf
+zz-lem'' cwf (∨-l {A = unit} {var} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ .(IN (λ x → x) (inj₂ y))
+  , .(sucItAll (proj₂ cwf) proj₄)) refl gprf
+     = zz-lem'' (refl , proj₂ cwf) d₁ p ph1 ph2 (y , proj₄) (s y , (sucItAll (proj₂ cwf) proj₄)) refl gprf
+zz-lem'' (() , proj) (∨-l {A = unit} {unit} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ y₁ , proj₅) sprf gprf 
+zz-lem'' (() , proj) (∨-l {A = unit} {B ∧ B₁} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ y₁ , proj₅) sprf gprf 
+zz-lem'' (() , proj) (∨-l {A = unit} {B ∨ B₁} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ y₁ , proj₅) sprf gprf 
+zz-lem'' (() , proj) (∨-l {A = unit} {μ B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ y₁ , proj₅) sprf gprf 
+zz-lem'' (() , proj) (∨-l {A = A ∧ A₁} {B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ y₁ , proj₅) sprf gprf 
+zz-lem'' (() , proj) (∨-l {A = A ∨ A₁} {B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ y₁ , proj₅) sprf gprf 
+zz-lem'' (() , proj) (∨-l {A = var} {B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ y₁ , proj₅) sprf gprf 
+zz-lem'' (() , proj) (∨-l {A = μ A} {B} d d₁) p ph1 ph2 (inj₂ y , proj₄) (inj₂ y₁ , proj₅) sprf gprf 
+
+
+zz-lem'' cwf (μ-l  d x x₁ x₂) p ph1 ph2 (IN x₃ x₄ , proj₄) cn2 sprf gprf = {!x₄!}
+zz-lem'' cwf (hyp-use x) p ph1 ph2 cn1 cn2 sprf gprf = {!!}
+
+
+
 
 -- hyp-full juhtum
 zz-lem : {Γ Γ' : Context}{n : Nat}
@@ -551,32 +670,20 @@ mutual
   zz-lem' cwf (∨-r₁ d) = {!!}
   zz-lem' cwf (∨-r₂ d) = {!!}
   zz-lem' cwf (∨-l d d₁) = {!!}
-  zz-lem' {.(μ (unit ∨ var) ∷ [])} {IN x₃ (inj₁ tt)} cwf (μ-l {.[]} {[]} {unit ∨ var} {.(unit ∨ unit)} d x x₁ x₂) p   with zz-lem {unit ∨ var ∷ []} {var ∷ []} {(IN (λ x₄ → x₄) (inj₂ (IN x₃ (inj₁ tt))))}  cwf (refl , tt) d refl ((λ q →
-          Fold
-          (λ Y rf rv w →
-             ⟦ d ⟧ (just Y) ((λ q₁ → rf (proj₁ q₁) w) , tt) (rv , w))
-          (proj₁ q) (proj₂ cwf))
-       , tt) {!!} {!!}
-    | zz-lem {unit ∨ var ∷ []} {var ∷ []}  {IN x₃ (inj₁ tt)} cwf cwf  d refl ((λ q →
-          Fold
-          (λ Y rf rv w →
-             ⟦ d ⟧ (just Y) ((λ q₁ → rf (proj₁ q₁) w) , tt) (rv , w))
-          (proj₁ q) (proj₂ cwf))
-       , tt)  {!!} {!!}
-  ... | o1 | o2   = {!!} -- refl
+  zz-lem' {.(μ (unit ∨ var) ∷ [])} {IN x₃ (inj₁ tt)} cwf (μ-l {.[]} {[]} {unit ∨ var} {.(unit ∨ unit)} d x x₁ x₂) p    =  zz-lem'' (refl , tt) d  refl _ _  _ _ refl  refl
     
   zz-lem' {.(μ (unit ∨ var) ∷ [])} {IN x₃ (inj₂ y)} cwf (μ-l {.[]} {[]} {unit ∨ var} {.(unit ∨ unit)} d x x₁ x₂) p with zz-lem {unit ∨ var ∷ []} {var ∷ []} {(IN (λ x₄ → x₄) (inj₂ (IN x₃ (inj₂ y))))} cwf (refl , tt) d refl ((λ q →
           Fold
           (λ Y rf rv w →
              ⟦ d ⟧ (just Y) ((λ q₁ → rf (proj₁ q₁) w) , tt) (rv , w))
-          (proj₁ q) (proj₂ cwf)) , tt)
+          (proj₁ q) (proj₂ cwf)) , tt) ( inj₂ (IN (λ x₄ → x₄) (inj₂ (IN x₃ (inj₂ y)))) , (proj₂ cwf)) ( ( ( (IN x₃ (inj₂ y)))) , tt)
         | zz-lem {unit ∨ var ∷ []} {var ∷ []} {IN x₃ (inj₂ y)}  cwf (refl , tt) d refl ((λ q →
           Fold
           (λ Y rf rv w →
              ⟦ d ⟧ (just Y) ((λ q₁ → rf (proj₁ q₁) w) , tt) (rv , w))
           (proj₁ q) (proj₂ cwf))
        , tt)
-  ... | o1 | o2 = {!!} -- refl
+  ... | o1 | o2 rewrite o1  = {!!} -- refl
 
   zz-lem' cwf (μ-l d x x₁ x₂) p = {!!}
 
@@ -584,7 +691,8 @@ mutual
   zz-lem' cwf (contr d) = {!!}
   zz-lem' cwf (weakn d) = {!!}
   zz-lem' cwf (exchng x d) = {!!}
-
+{-
      
 
 
+-}
