@@ -481,6 +481,37 @@ sucItAll {unit ∨ var ∷ Γ'} d (inj₂ y , n') = inj₂ (s y) , sucItAll {Γ'
 sucItAll {var ∷ Γ'} d  (n , n') = s n , sucItAll {Γ'} (proj₂ d) n'
 sucItAll {z ∷ Γ'} d  n = n -- impossible
 
+sucItAllThm : {Γ : Context}{cwf : cWF Γ}{n : Nat}
+       → sucItAll cwf (toValC (just Nat) refl Γ n cwf) ≡ (toValC (just Nat) refl Γ (s n) cwf)
+sucItAllThm {[]} {cwf} {n} = refl
+sucItAllThm {unit ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {x ∧ x₁ ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {var ∷ Γ} {proj₃ , proj₄} {n} rewrite sucItAllThm {Γ} {proj₄} {n} = refl
+sucItAllThm {μ (unit ∨ var) ∷ Γ} {proj₃ , proj₄} {n} rewrite sucItAllThm {Γ} {proj₄} {n} = refl 
+sucItAllThm {unit ∨ var ∷ Γ} {proj₃ , proj₄} {n} rewrite sucItAllThm {Γ} {proj₄} {n} = refl  
+sucItAllThm {unit ∨ unit ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {unit ∨ (x₁ ∧ x₂) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {unit ∨ (x₁ ∨ x₂) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {unit ∨ μ x₁ ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {(x ∧ x₂) ∨ x₁ ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {(x ∨ x₂) ∨ x₁ ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {var ∨ x₁ ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ x ∨ x₁ ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ (unit ∨ (x₁ ∧ x₂)) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ (unit ∨ (x₁ ∨ x₂)) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ (unit ∨ unit) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ (unit ∨ μ x₁) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ ((x ∧ x₂) ∨ x₁) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ ((x ∨ x₂) ∨ x₁) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ (var ∨ x₁) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ (μ x ∨ x₁) ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ (x ∧ x₁) ∷ Γ} {() , proj₄} {n}
+sucItAllThm {μ unit ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ var ∷ Γ} {() , proj₄} {n} 
+sucItAllThm {μ (μ x) ∷ Γ} {() , proj₄} {n} 
+
+
+
 sucItAll' : {Γ' : Context} → cWF Γ' →  ⟦ Γ' ⟧C (just Nat) → Bool
 sucItAll' {[]} d tt = true
 sucItAll' {μ (unit ∨ var) ∷ Γ'} d (IN x (inj₁ x₁) , n') = false
@@ -492,10 +523,13 @@ sucItAll' {var ∷ Γ'} d (IN x (inj₁ x₁) , n') = false
 sucItAll' {var ∷ Γ'} d (IN x (inj₂ y) , n') = sucItAll' {Γ'} (proj₂ d) n'
 sucItAll' {z ∷ Γ'} d  n = false
 
+
+ΓgoodF : (A : Formula) → ⟦ A ⟧F (just Nat) → Bool
+ΓgoodF (unit ∨ var) (inj₁ _) = false
+ΓgoodF _ _ = true
+
 Γgood : (Γ : Context)  →  (cn : ⟦ Γ ⟧C (just Nat)) → Bool
-Γgood (unit ∨ var ∷ G) (inj₁ x , proj₄) = false
-Γgood (unit ∨ var ∷ G) (inj₂ y , proj₄) = Γgood G proj₄
-Γgood (x ∷ G) (y , proj₄) = Γgood G proj₄
+Γgood (A ∷ G) (v , proj₄) = ΓgoodF A v & Γgood G proj₄
 Γgood [] _ = true
 
 
@@ -519,6 +553,26 @@ mylemma' : {A : Formula}{Γ Γ' : Context}{n : Nat}{cwf1 : cWF Γ} → (x : A �
    → f-lemm Γ Γ' x (toValC (just Nat) refl Γ n cwf1)  ≡ (toValF (just Nat) refl A n (fok _ _ x cwf1 ))
 mylemma' herex = refl
 mylemma' {A} {Γ} {Γ'}{n} {cwf1} (therex x) rewrite mylemma' {A} {_} {_} {n} {proj₂ cwf1}  x = refl
+
+closed-3 : {a b : Bool} → a ≡ true → b ≡ true → a & b ≡ true
+closed-3 = {!!}
+
+mylemma'' : {A : Formula}{Γ Γ' : Context}{n : Nat}{cwf : cWF Γ} → (x : A ∈ Γ , Γ')
+  → Γgood Γ (toValC (just (Mu (_⊎_ ⊤))) refl Γ n cwf) ≡ true
+  →  ΓgoodF A (toValF (just Nat) refl A n (fok Γ Γ' x cwf)) &
+      Γgood Γ' (toValC (just Nat) refl Γ' n (cok Γ Γ' cwf x)) ≡ true
+mylemma'' {Γ = .(_ ∷ _)} herex p = p
+mylemma'' {A} {_ ∷ _} {n = n} {cwf = cwf} (therex {x = x'} {xs = xs} {ys = ys}  x) p with mylemma'' x  (closed-2 p)
+... | o  rewrite closed-1 {a = ΓgoodF A
+       (toValF (just (Mu (_⊎_ ⊤))) refl A _ (fok _ _ x (proj₂ cwf)))} o = closed-3 {b = Γgood ys
+      (toValC (just (Mu (_⊎_ ⊤))) refl ys n (cok xs ys (proj₂ cwf) x))} (closed-1 p) (closed-2 o)
+
+
+
+mylemma''' : {Γ : Context} → {z : closedC Γ ≡ true} → (w : ⟦ Γ ⟧C (just Nat))  →  subst id (wcc-eq {just Nat} {just Nat} {Γ} {z}) w ≡ w
+mylemma''' {Γ} {z} w  with (wcc-eq {just Nat} {just Nat} {Γ} {z})
+mylemma''' {Γ} {z} w | refl = refl
+    
 
 
 
@@ -673,56 +727,68 @@ zz-lem {n = n}  cwf' hwf (exchng x d) p φ cn1 cn2 = zz-lem {n = n}  cwf' cwf' d
 
 
 
-mutual
-  zz-lem' : {Γ  : Context}{n : Nat}
-   → (cwf : cWF Γ)
-    → {x : Γgood Γ (toValC (just Nat) refl Γ n cwf ) ≡ true    }
-   → (d :  [] ⊢ Γ ⇒ BoolRaw) → (true ≡ true)
-   → ⟦ d ⟧ (just Nat) tt (toValC (just Nat) refl Γ n cwf ) ≡ ⟦ d ⟧ (just Nat) tt (toValC (just Nat) refl Γ (s n) cwf)
-  zz-lem' (() , cwf) id-axiom p 
-  zz-lem' (() , cwf) (unit-l d) p
-  zz-lem' (()  , cwf) (∧-l c) 
-  zz-lem' cwf (∨-r₁ d) p = refl
-  zz-lem' cwf (∨-r₂ d) p = refl
-  zz-lem' {(.(unit ∨ var) ∷ Γ)} {IN x (inj₁ x₁)} cwf {xx}  (∨-l {A = unit} {var} d d₁)  p with  zz-lem' {var ∷ Γ} {IN x (inj₁ x₁)} (refl , proj₂ cwf) {xx}  d₁ refl
-  ... | o  rewrite o = refl
-  zz-lem' {(.(unit ∨ var) ∷ Γ)} {IN x (inj₂ y)} cwf {xx} (∨-l {A = unit} {var} d d₁) p with  zz-lem' {var ∷ Γ} {IN x (inj₂ y)} (refl , proj₂ cwf) {xx}  d₁ refl
-  ... | o rewrite o = refl
-  zz-lem' (() , cwf) (∨-l {A = unit} {unit} d d₁) p 
-  zz-lem' (() , cwf) (∨-l {A = unit} {B ∧ B₁} d d₁) p
-  zz-lem' (() , cwf) (∨-l {A = unit} {B ∨ B₁} d d₁) p
-  zz-lem' (() , cwf) (∨-l {A = unit} {μ B} d d₁) p 
-  zz-lem' (() , cwf) (∨-l {A = A ∧ A₁} {B} d d₁) p 
-  zz-lem' (() , cwf) (∨-l {A = A ∨ A₁} {B} d d₁) p
-  zz-lem' (() , cwf) (∨-l {A = var} {B} d d₁) p 
-  zz-lem' (() , cwf) (∨-l {A = μ A} {B} d d₁) p   
 
-  zz-lem' {.(μ (unit ∨ var)) ∷ Γ} {n = n} (prf , cwf) {xx} (μ-l {A = unit ∨ var} d x x₁ x₂) p =  zz-lem'' (refl , cwf) d  refl _ _  _ _ {!refl!}  {!xx!}
+zz-lem' : {Γ  : Context}{n : Nat}
+ → (cwf : cWF Γ)
+  → {x : Γgood Γ (toValC (just Nat) refl Γ n cwf ) ≡ true    }
+ → (d :  [] ⊢ Γ ⇒ BoolRaw) → (true ≡ true)
+ → ⟦ d ⟧ (just Nat) tt (toValC (just Nat) refl Γ n cwf ) ≡ ⟦ d ⟧ (just Nat) tt (toValC (just Nat) refl Γ (s n) cwf)
+zz-lem' (() , cwf) id-axiom p 
+zz-lem' (() , cwf) (unit-l d) p
+zz-lem' (()  , cwf) (∧-l c) 
+zz-lem' cwf (∨-r₁ d) p = refl
+zz-lem' cwf (∨-r₂ d) p = refl
+zz-lem' {(.(unit ∨ var) ∷ Γ)} {IN x (inj₁ x₁)} cwf {xx}  (∨-l {A = unit} {var} d d₁)  p with  zz-lem' {var ∷ Γ} {IN x (inj₁ x₁)} (refl , proj₂ cwf) {xx}  d₁ refl
+... | o  rewrite o = refl
+zz-lem' {(.(unit ∨ var) ∷ Γ)} {IN x (inj₂ y)} cwf {xx} (∨-l {A = unit} {var} d d₁) p with  zz-lem' {var ∷ Γ} {IN x (inj₂ y)} (refl , proj₂ cwf) {xx}  d₁ refl
+... | o rewrite o = refl
+zz-lem' (() , cwf) (∨-l {A = unit} {unit} d d₁) p 
+zz-lem' (() , cwf) (∨-l {A = unit} {B ∧ B₁} d d₁) p
+zz-lem' (() , cwf) (∨-l {A = unit} {B ∨ B₁} d d₁) p
+zz-lem' (() , cwf) (∨-l {A = unit} {μ B} d d₁) p 
+zz-lem' (() , cwf) (∨-l {A = A ∧ A₁} {B} d d₁) p 
+zz-lem' (() , cwf) (∨-l {A = A ∨ A₁} {B} d d₁) p
+zz-lem' (() , cwf) (∨-l {A = var} {B} d d₁) p 
+zz-lem' (() , cwf) (∨-l {A = μ A} {B} d d₁) p   
 
-  zz-lem' (() , cwf) (μ-l {A = unit} d x x₁ x₂) p 
-  zz-lem' (() , cwf) (μ-l {A = A ∧ A₁} d x x₁ x₂) p
-  zz-lem' (() , cwf) (μ-l {A = unit ∨ unit} d x x₁ x₂) p 
-  zz-lem' (() , cwf) (μ-l {A = unit ∨ (A₁ ∧ A₂)} d x x₁ x₂) p
-  zz-lem' (() , cwf) (μ-l {A = unit ∨ (A₁ ∨ A₂)} d x x₁ x₂) p
+zz-lem' {.(μ (unit ∨ var)) ∷ Γ} {n = n} (prf , cwf) {xx} (μ-l {A = unit ∨ var} d x x₁ x₂) p =
+  zz-lem'' (refl , cwf) d  refl _ _  _ _ (subst (λ R → (inj₂ (s n) ,
+       sucItAll cwf
+       R)
+      ≡
+      (inj₂ (s n) ,
+       subst (λ x₃ → x₃) wcc-eq (toValC (just Nat) refl Γ (s n) cwf))) (sym (mylemma'''  {Γ}  {x₂} (toValC (just Nat) refl Γ n cwf) )) (subst (λ R → (inj₂ (s n) , sucItAll cwf (toValC (just Nat) refl Γ n cwf))
+      ≡
+      (inj₂ (s n) ,
+       R)) ((sym (mylemma'''  {Γ}  {x₂} (toValC (just Nat) refl Γ (s n) cwf) ))) (cong (λ z →  ( inj₂ (s n) , z ) ) sucItAllThm ) ))  (subst (λ R → R ≡ true) (subst (λ R → Γgood Γ (toValC (just Nat) refl Γ n cwf) ≡
+      Γgood Γ R) (sym (mylemma'''  {Γ}  {x₂} (toValC (just Nat) refl Γ n cwf) )) refl) xx)
 
-  zz-lem' (() , cwf) (μ-l {A = unit ∨ μ A₁} d x x₁ x₂) p
-  zz-lem' (() , cwf) (μ-l {A = (A ∧ A₂) ∨ A₁} d x x₁ x₂) p
-  zz-lem' (() , cwf) (μ-l {A = (A ∨ A₂) ∨ A₁} d x x₁ x₂) p
-  zz-lem' (() , cwf) (μ-l {A = var ∨ A₁} d x x₁ x₂) p 
-  zz-lem' (() , cwf) (μ-l {A = μ A ∨ A₁} d x x₁ x₂) p 
-  zz-lem' (() , cwf) (μ-l {A = var} d x x₁ x₂) p 
-  zz-lem' (() , cwf) (μ-l {A = μ A} d x x₁ x₂) p 
 
-  zz-lem' cwf (hyp-use ())
-  zz-lem' {Γ} {n} cwf {xx} (contr {A = A} d) p with zz-lem' {A ∷ Γ} {n}  (proj₁ cwf , proj₁ cwf , proj₂ cwf) {{!!}} d refl
-  ... | o rewrite o = refl
-  zz-lem' {Γ} {n} cwf {xx} (weakn {A = A} d) p rewrite p with zz-lem' {n = n} (proj₂ cwf) {{!!}} d refl
-  ... | o rewrite o = refl
-  zz-lem' {Γ} {n} cwf {xx} (exchng {Γ' = Γ'} {A = A} x d) p
-    rewrite mylemma {A} {Γ} {Γ'} {n} {cwf} x
-    | mylemma {A} {Γ} {Γ'} {s n} {cwf} x
-    | mylemma' {A} {Γ} {Γ'} {n} {cwf} x
-    | mylemma' {A} {Γ} {Γ'} {s n} {cwf} x
-    with zz-lem' {Γ = A ∷ Γ'} {n} (fok _ _ x cwf , cok _ _ cwf x) {{!!}} d refl
-  ... | o rewrite o =  refl
+
+zz-lem' (() , cwf) (μ-l {A = unit} d x x₁ x₂) p 
+zz-lem' (() , cwf) (μ-l {A = A ∧ A₁} d x x₁ x₂) p
+zz-lem' (() , cwf) (μ-l {A = unit ∨ unit} d x x₁ x₂) p 
+zz-lem' (() , cwf) (μ-l {A = unit ∨ (A₁ ∧ A₂)} d x x₁ x₂) p
+zz-lem' (() , cwf) (μ-l {A = unit ∨ (A₁ ∨ A₂)} d x x₁ x₂) p
+
+zz-lem' (() , cwf) (μ-l {A = unit ∨ μ A₁} d x x₁ x₂) p
+zz-lem' (() , cwf) (μ-l {A = (A ∧ A₂) ∨ A₁} d x x₁ x₂) p
+zz-lem' (() , cwf) (μ-l {A = (A ∨ A₂) ∨ A₁} d x x₁ x₂) p
+zz-lem' (() , cwf) (μ-l {A = var ∨ A₁} d x x₁ x₂) p 
+zz-lem' (() , cwf) (μ-l {A = μ A ∨ A₁} d x x₁ x₂) p 
+zz-lem' (() , cwf) (μ-l {A = var} d x x₁ x₂) p 
+zz-lem' (() , cwf) (μ-l {A = μ A} d x x₁ x₂) p 
+
+zz-lem' cwf (hyp-use ())
+zz-lem' {Γ} {n} cwf {xx} (contr {A = A} d) p with zz-lem' {A ∷ Γ} {n}  (proj₁ cwf , proj₁ cwf , proj₂ cwf) {closed-3 {a = ΓgoodF A (toValF (just Nat) refl A n (proj₁ cwf))} (closed-1 xx) xx} d refl
+... | o rewrite o = refl
+zz-lem' {Γ} {n} cwf {xx} (weakn {A = A} d) p rewrite p with zz-lem' {n = n} (proj₂ cwf) {closed-2 xx} d refl
+... | o rewrite o = refl
+zz-lem' {Γ} {n} cwf {xx} (exchng {Γ' = Γ'} {A = A} x d) p  
+  rewrite mylemma {A} {Γ} {Γ'} {n} {cwf} x
+  | mylemma {A} {Γ} {Γ'} {s n} {cwf} x
+  | mylemma' {A} {Γ} {Γ'} {n} {cwf} x
+  | mylemma' {A} {Γ} {Γ'} {s n} {cwf} x
+  with zz-lem' {Γ = A ∷ Γ'} {n} (fok _ _ x cwf , cok _ _ cwf x) {mylemma''  x xx} d refl
+... | o rewrite o =  refl
 
