@@ -30,6 +30,7 @@ blah = therex (therex (therex herex))
 _⊆_ : {X : Set} → List X → List X → Set
 xs ⊆ ys = ∀ x → x ∈ xs → x ∈ ys
 
+{-
 DupFree : {X : Set} → List X → Set
 DupFree xs = ∀ x → (p1 p2 : x ∈ xs) → p1 ≡ p2
 
@@ -43,4 +44,4 @@ postulate
   dupFreeDF  : {X : Set} → (l : List X) → DupFree (dupFreeList l)
   
   pr1 : {X : Set} → (x : X) → (l : List X) → dupFreeList (x ∷ x ∷ l) ≡ dupFreeList (x ∷ l)
-
+-}
