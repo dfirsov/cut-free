@@ -452,53 +452,54 @@ charf-natraw-unit (exchng (therex ()) d)
 
 
 mutual
-  charfs :  (d : tt ⊢ NatRaw ∷ [] ⇒ unit ∨ NatRaw) → {pf : idax-free d ≡ false} → (b : Nat) → Σ[ b₁ ∈ ℕ ]  Nat2ℕ (In (⟦ d ⟧ nothing  (b , tt))) ≡ b₁ + Nat2ℕ b
-  charfs (∨-r₁ d) {pf} b rewrite charf-natraw-unit d with pf
+  charfs :  (d : tt ⊢ NatRaw ∷ [] ⇒ unit ∨ NatRaw) → {pf : idax-free d ≡ false} → Σ[ b₁ ∈ ℕ ] (∀ b →  Nat2ℕ (In (⟦ d ⟧ nothing  (b , tt))) ≡ b₁ + Nat2ℕ b )
+  charfs (∨-r₁ d) {pf}  rewrite charf-natraw-unit d with pf
   ... | ()
-  charfs (∨-r₂ d) {pf} b with charf' d {pf} b
-  ... |  (p1 , p2) = suc p1 , cong suc p2
-  charfs (μ-l d x x₁) {pf} b rewrite charf-unitvar-A d with pf
+  charfs (∨-r₂ d) {pf}  with charf' d {pf} 
+  ... |  (p1 , p2) = suc p1 , λ b → cong  suc (p2  b) --suc p1 , cong suc p2
+  charfs (μ-l d x x₁) {pf}  rewrite charf-unitvar-A d with pf
   ... | ()
-  charfs (weakn d) {pf} b rewrite charf-[]-A d with pf
+  charfs (weakn d) {pf}  rewrite charf-[]-A d with pf
   ... | ()
-  charfs (exchng herex d) {pf} b = charfs d {pf} b 
-  charfs (exchng (therex ()) d) {pf} b
+  charfs (exchng herex d) {pf}  = charfs d {pf}  
+  charfs (exchng (therex ()) d) {pf} 
 
-  charf' :  (d : tt ⊢ NatRaw ∷ [] ⇒ NatRaw) → {pf : idax-free d ≡ false} → (b : Nat) → Σ[ b₁ ∈ ℕ ]  Nat2ℕ (⟦ d ⟧ nothing  (b , tt)) ≡ b₁ + Nat2ℕ b
-  charf' id-axiom b = 0 , refl
-  charf' (μ-r (∨-r₁ d)) {pf} b  rewrite charf-natraw-unit d with pf
+  charf' :  (d : tt ⊢ NatRaw ∷ [] ⇒ NatRaw) → {pf : idax-free d ≡ false} → Σ[ b₁ ∈ ℕ ] (∀ b → Nat2ℕ (⟦ d ⟧ nothing  (b , tt)) ≡ b₁ + Nat2ℕ b)
+  charf' id-axiom = 0 , λ _ → refl
+  charf' (μ-r (∨-r₁ d)) {pf}   rewrite charf-natraw-unit d with pf
   ... | () 
-  charf' (μ-r (∨-r₂ d)) {pf} b with charf' d {pf} b
-  charf' (μ-r (∨-r₂ d)) {pf} b | proj₃ , proj₄ = suc proj₃ , cong suc proj₄
-  charf' (μ-r (μ-l d x x₁)) {pf} b  rewrite charf-unitvar-A d with pf
+  charf' (μ-r (∨-r₂ d)) {pf}  with charf' d {pf} 
+  charf' (μ-r (∨-r₂ d)) {pf}  | proj₃ , proj₄ = suc proj₃ , λ b → cong suc (proj₄ b)
+  charf' (μ-r (μ-l d x x₁)) {pf}   rewrite charf-unitvar-A d with pf
   ... | ()
-  charf' (μ-r (weakn d)) {pf} b rewrite charf-[]-A d with pf
+  charf' (μ-r (weakn d)) {pf}  rewrite charf-[]-A d with pf
   ... | ()
-  charf' (μ-r (exchng herex (∨-r₁ d))) {pf} b rewrite charf-natraw-unit d with pf
+  charf' (μ-r (exchng herex (∨-r₁ d))) {pf}  rewrite charf-natraw-unit d with pf
   ... | () 
-  charf' (μ-r (exchng herex (∨-r₂ d))) {pf} b with charf' d {pf} b
-  ... | (p1 , p2) = suc p1 , cong suc p2
-  charf' (μ-r (exchng herex (μ-l d x x₁))) {pf} b rewrite charf-unitvar-A d with pf
+  charf' (μ-r (exchng herex (∨-r₂ d))) {pf}  with charf' d {pf} 
+  ... | (p1 , p2) = suc p1 , λ b → cong suc (p2 b)
+  charf' (μ-r (exchng herex (μ-l d x x₁))) {pf}  rewrite charf-unitvar-A d with pf
   ... | () 
-  charf' (μ-r (exchng herex (weakn d)))  {pf} b rewrite charf-[]-A d with pf
+  charf' (μ-r (exchng herex (weakn d)))  {pf}  rewrite charf-[]-A d with pf
   ... | ()
-  charf' (μ-r (exchng herex (exchng herex d))) {pf} b = charfs d {pf} b
-  charf' (μ-r (exchng herex (exchng (therex ()) d))) b
-  charf' (μ-r (exchng (therex ()) d)) b
-  charf' (μ-l d x x₁) {pf} b rewrite charf-unitvar-A d with pf
+  charf' (μ-r (exchng herex (exchng herex d))) {pf}  = charfs d {pf} 
+  charf' (μ-r (exchng herex (exchng (therex ()) d))) 
+  charf' (μ-r (exchng (therex ()) d))
+  charf' (μ-l d x x₁) {pf} rewrite charf-unitvar-A d with pf
   ... | () 
-  charf' (weakn (μ-r (∨-r₁ unit-r))) {()} b
-  charf' (weakn (μ-r (∨-r₁ (exchng () d)))) b
-  charf' (weakn (μ-r (∨-r₂ (μ-r (∨-r₁ unit-r))))) {()} b
-  charf' (weakn (μ-r (∨-r₂ (μ-r (∨-r₁ (exchng () d)))))) b
-  charf' (weakn (μ-r (∨-r₂ (μ-r (∨-r₂ d))))) {pf} b rewrite charf-[]-A d with pf
+  charf' (weakn (μ-r (∨-r₁ unit-r))) {()} 
+  charf' (weakn (μ-r (∨-r₁ (exchng () d)))) 
+  charf' (weakn (μ-r (∨-r₂ (μ-r (∨-r₁ unit-r))))) {()} 
+  charf' (weakn (μ-r (∨-r₂ (μ-r (∨-r₁ (exchng () d)))))) 
+  charf' (weakn (μ-r (∨-r₂ (μ-r (∨-r₂ d))))) {pf}  rewrite charf-[]-A d with pf
   ... | ()
-  charf' (weakn (μ-r (∨-r₂ (μ-r (exchng () d))))) b
-  charf' (weakn (μ-r (∨-r₂ (exchng () d)))) b
-  charf' (weakn (μ-r (exchng () d))) b
-  charf' (weakn (exchng () d)) b
-  charf' (exchng herex d) {pf} b = charf' d {pf} b
-  charf' (exchng (therex ()) d) b
+  charf' (weakn (μ-r (∨-r₂ (μ-r (exchng () d))))) 
+  charf' (weakn (μ-r (∨-r₂ (exchng () d)))) 
+  charf' (weakn (μ-r (exchng () d))) 
+  charf' (weakn (exchng () d)) 
+  charf' (exchng herex d) {pf}  = charf' d {pf} 
+  charf' (exchng (therex ()) d) 
+
 
 
 
@@ -583,5 +584,6 @@ mutual
   charf (weakn (exchng () d)) b
   charf (exchng herex d) {pf} b = charf d {pf} b
   charf (exchng (therex ()) d) b
+
 
 
