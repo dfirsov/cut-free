@@ -1,4 +1,4 @@
-# variations of cut-free sequent calculi
+# Variations of cut-free sequent calculi
 
 NR(C) - no recursion (with contraction)
 
