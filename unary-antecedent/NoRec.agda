@@ -35,10 +35,10 @@ data _⊢_ :  HContext  → Seq → Set where
   id-axiom : ∀ {Φ : HContext}{A : Formula}
         → Φ ⊢ A ⇒ A
         
-  unit-r : ∀ {Φ : HContext}{A : Formula} → Φ ⊢ A ⇒ unit
-
   ∧-r  : ∀ {Φ : HContext} {C : Formula} {A B : Formula}
              → Φ ⊢  C ⇒ A → Φ ⊢  C ⇒ B → Φ ⊢  C ⇒ A ∧ B
+
+  unit-r : ∀ {Φ : HContext}{A : Formula} → Φ ⊢ A ⇒ unit
              
   ∧-l₁  : ∀ {Φ : HContext}  {A B C : Formula}
              →   Φ ⊢ A ⇒ C → Φ ⊢  A ∧ B ⇒ C
@@ -106,6 +106,43 @@ data _⊢c_ :  HContext  → Seq → Set where
          
 
 
+cut-elim : {Φ : HContext}{Γ : Formula}{A : Formula} → Φ ⊢c (Γ ⇒ A) → Φ ⊢c (Γ ⇒ A)
+cut-elim (cut id-axiom d₁) = d₁
+cut-elim (cut unit-r d₁) = {!!}
+cut-elim (cut (∧-r d d₂) id-axiom) = {!!}
+cut-elim (cut (∧-r d d₂) unit-r) = {!!}
+cut-elim (cut (∧-r d d₂) (∧-r d₁ d₃)) = {!d₁!}
+
+
+cut-elim (cut (∧-r d d₂) (∧-l₁ d₁)) = {!!}
+cut-elim (cut (∧-r d d₂) (∧-l₂ d₁)) = {!!}
+cut-elim (cut (∧-r d d₂) (∨-r₁ d₁)) = {!!}
+cut-elim (cut (∧-r d d₂) (∨-r₂ d₁)) = {!!}
+cut-elim (cut (∧-r d d₂) (μ-r d₁)) = {!!}
+cut-elim (cut (∧-r d d₂) (cut d₁ d₃)) = {!!}
+cut-elim (cut (∧-l₁ d) d₁) = {!!}
+cut-elim (cut (∧-l₂ d) d₁) = {!!}
+cut-elim (cut (∨-r₁ d) d₁) = {!!}
+cut-elim (cut (∨-r₂ d) d₁) = {!!}
+cut-elim (cut (∨-l d d₂) d₁) = {!!}
+cut-elim (cut (μ-r d) d₁) = {!!}
+cut-elim (cut (μ-l x x₁ x₂) d₁) = {!!}
+cut-elim (cut (cut d d₂) d₁) = {!!}
+
+cut-elim id-axiom = {!!}
+cut-elim unit-r = {!!}
+cut-elim (∧-r d d₁) = {!!}
+cut-elim (∧-l₁ d) = {!!}
+cut-elim (∧-l₂ d) = {!!}
+cut-elim (∨-r₁ d) = {!!}
+cut-elim (∨-r₂ d) = {!!}
+cut-elim (∨-l d d₁) = {!!}
+cut-elim (μ-r d) = {!!}
+cut-elim (μ-l x x₁ x₂) = {!!}
+
+
+{-
+
 ⟦_⟧ : {Φ : HContext}{Γ : Formula}{A : Formula} → Φ ⊢ (Γ ⇒ A) → (ρ : Maybe Set)
   → ⟦ Γ ⟧F ρ → ⟦ A ⟧F ρ
 ⟦ id-axiom ⟧ ρ v = v
@@ -147,8 +184,37 @@ not𝔹-l₁ = refl
 not𝔹-l₂ : not𝔹 f ≡ t
 not𝔹-l₂ = refl
 
+
+NatRaw : Formula
+NatRaw = μ (unit ∨ var)
+
+diagD : tt ⊢ NatRaw ⇒ NatRaw ∧ NatRaw
+diagD = ∧-r id-axiom id-axiom
+
+
+NatNatRaw : Formula
+NatNatRaw = μ (var ∨ μ (unit ∨ var))
+
+[3,1] : tt ⊢  unit ⇒ NatNatRaw
+[3,1] = μ-r (∨-r₁ (μ-r (∨-r₁ (μ-r (∨-r₂ (μ-r
+               (∨-r₂ (μ-r (∨-r₁ unit-r)))))))))
+
+
+
+
 {-
 
+Claim:
+
+    diag : NatRaw ⇒ NatNatRaw
+
+does not exist in unary cut-free fragment
+
+
+-}
+
+
+{-
 
 
 1/ cut-elimination
@@ -177,4 +243,6 @@ Delta1 ->  A1  ... Deltan -> An                 Lambda, C -> D
 -----------------------------------------
   Y, Delta1, Deltan, Lambda -> D
                
+-}
+
 -}
