@@ -30,43 +30,43 @@ closedH : HContext → Bool
 closedH _ = true
 
 
-infix 3 _⊢c_
-data _⊢c_ :  HContext  → Seq → Set where
+infix 3 _⊢_
+data _⊢_ :  HContext  → Seq → Set where
   id-axiom : ∀ {Φ : HContext}{A : Formula}
-        → Φ ⊢c A ⇒ A
+        → Φ ⊢ A ⇒ A
         
-  unit-r : ∀ {Φ : HContext}{A : Formula} → Φ ⊢c A ⇒ unit
+  unit-r : ∀ {Φ : HContext}{A : Formula} → Φ ⊢ A ⇒ unit
 
   ∧-r  : ∀ {Φ : HContext} {C : Formula} {A B : Formula}
-             → Φ ⊢c  C ⇒ A → Φ ⊢c  C ⇒ B → Φ ⊢c  C ⇒ A ∧ B
+             → Φ ⊢  C ⇒ A → Φ ⊢  C ⇒ B → Φ ⊢  C ⇒ A ∧ B
              
   ∧-l₁  : ∀ {Φ : HContext}  {A B C : Formula}
-             →   Φ ⊢c A ⇒ C → Φ ⊢c  A ∧ B ⇒ C
+             →   Φ ⊢ A ⇒ C → Φ ⊢  A ∧ B ⇒ C
   ∧-l₂  : ∀ {Φ : HContext}  {A B C : Formula}
-             →   Φ ⊢c B ⇒ C → Φ ⊢c  A ∧ B ⇒ C             
+             →   Φ ⊢ B ⇒ C → Φ ⊢  A ∧ B ⇒ C             
   
   ∨-r₁  : ∀ {Φ : HContext} {C : Formula} {A B : Formula}
-             → Φ ⊢c  C ⇒ A → Φ ⊢c  C ⇒ A ∨ B
+             → Φ ⊢  C ⇒ A → Φ ⊢  C ⇒ A ∨ B
   ∨-r₂  : ∀ {Φ : HContext} {Γ : Formula} {A B : Formula}
-             → Φ ⊢c Γ ⇒ B → Φ ⊢c  Γ ⇒ A ∨ B
+             → Φ ⊢ Γ ⇒ B → Φ ⊢  Γ ⇒ A ∨ B
              
   ∨-l  : ∀ {Φ : HContext}{A B C : Formula}
-             → Φ ⊢c A ⇒ C 
-             → Φ ⊢c B ⇒ C 
-             → Φ ⊢c A ∨ B ⇒ C   
+             → Φ ⊢ A ⇒ C 
+             → Φ ⊢ B ⇒ C 
+             → Φ ⊢ A ∨ B ⇒ C   
 
   μ-r  : ∀ {Φ : HContext} {Γ : Formula} {A : Formula}
-             → Φ ⊢c Γ ⇒ substVar (μ A)  A
-             → Φ ⊢c Γ ⇒ μ A
+             → Φ ⊢ Γ ⇒ substVar (μ A)  A
+             → Φ ⊢ Γ ⇒ μ A
              
   μ-l  : ∀  {A : Formula}{C : Formula}
-            → tt ⊢c A ⇒ C
+            → tt ⊢ A ⇒ C
             → closedF C ≡ true
-            → tt ⊢c μ A  ⇒ C
+            → tt ⊢ μ A  ⇒ C
 
 
 substVarWeak : {Φ : HContext}{A B C : Formula}
-         → Φ ⊢c A ⇒ C → {pf : closedF C ≡ true} → Φ ⊢c (substVar (μ B) A) ⇒ C
+         → Φ ⊢ A ⇒ C → {pf : closedF C ≡ true} → Φ ⊢ (substVar (μ B) A) ⇒ C
 substVarWeak {A = unit} d = d
 substVarWeak {A = A ∧ A₁} id-axiom {pf} = ∧-r (∧-l₁ (substVarWeak {A = A} id-axiom {closed-1 pf}) ) (∧-l₂ (substVarWeak id-axiom {closed-2 pf} ))
 substVarWeak {A = A ∧ A₁} unit-r = unit-r
@@ -93,7 +93,7 @@ substVarWeak {A = μ A} d = d
 
 {- weaker requirement  that closedF C in cut definition -}
 WeakL : {Φ : HContext}{A B : Formula}
-         → Φ ⊢c A ⇒ B → Formula → Bool
+         → Φ ⊢ A ⇒ B → Formula → Bool
 WeakL id-axiom C = true
 WeakL unit-r C = true
 WeakL (∧-r d d₁) C = WeakL d C & WeakL d₁ C
@@ -114,10 +114,10 @@ closedF C = true can be put in different places
 -}
 
 cut : {Φ : HContext}{A B C : Formula}
-         → (d : Φ ⊢c A ⇒ B)
+         → (d : Φ ⊢ A ⇒ B)
          → {pf :  closedF C ≡ true}
-         → Φ ⊢c B ⇒ C
-         → Φ ⊢c A ⇒ C
+         → Φ ⊢ B ⇒ C
+         → Φ ⊢ A ⇒ C
 cut d₁ id-axiom = d₁
 cut d₁ unit-r = unit-r
 cut d₁ {pf} (∧-r d₂ d₃) = ∧-r (cut d₁ {closed-1 pf} d₂) (cut d₁ {closed-2 pf} d₃)
@@ -126,8 +126,10 @@ cut (∧-r d₁ d₃) {pf} (∧-l₁ d₂) = cut d₁ {pf} d₂
 cut (∧-l₁ d₁) {pf} d₂ = ∧-l₁ (cut d₁ {pf} d₂)
 cut (∧-l₂ d₁) {pf} d₂ = ∧-l₂ (cut d₁ {pf} d₂)
 cut  (μ-l d₁ x ) {pf} d = μ-l (cut d₁ {closed-2 pf} d) pf
-cut id-axiom (μ-l d₂ x ) = μ-l d₂ x 
+cut id-axiom (μ-l d₂ x ) = μ-l d₂ x
+
 cut (μ-r d₁) {pf} (μ-l d x ) = cut d₁ {pf} (substVarWeak d {x})
+
 cut {_} {A} {B} {C} d₁ {pf} (μ-r {A = A'} d₂) = μ-r (cut d₁ {closed-subst {A'} {μ _} refl} d₂) 
 cut (μ-r d₁) {pf} (∨-r₁ d₂) = ∨-r₁ (cut (μ-r d₁) {closed-1 pf} d₂)
 cut id-axiom (∧-l₂ d₂) = ∧-l₂ d₂

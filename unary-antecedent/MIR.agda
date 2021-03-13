@@ -82,136 +82,107 @@ mutual
 
     hyp-use : ∀ {S : Seq} → (just S) ⊢ S -- back edge
 
-{-
-    cut-hyp-lflip : ∀ {Φ : HContext}{A B C : Formula}
-          → (d₁ : Φ ⊢ A ⇒ B)
-          → (d₂ : nothing ⊢ B ⇒ C)
-          → (if (concOfμ-l d₁) then (concOfRight? d₂)  else false) ≡ true
-          → Φ ⊢ A ⇒ C
--}
-
-    cut-!hyp : ∀ {Φ : HContext}{A B C : Formula}
-          → (d₁ : Φ ⊢ A ⇒ B)
-          → (d₂ : Φ ⊢ B ⇒ C)
-          → (hyp-used? d₁ ≡ false) × (hyp-used? d₂ ≡ false)
-          → Φ ⊢ A ⇒ C
-
-   -- TODO: cut-hyp-right
- {-
-  concOfμ-l : {Φ : HContext}{A B : Formula}(d : Φ ⊢ A ⇒ B) → Bool
-  concOfμ-l id-axiom = false
-  concOfμ-l unit-r = false
-  concOfμ-l (∧-r d d₁) = false
-  concOfμ-l (∧-l₁ d) = false
-  concOfμ-l (∧-l₂ d) = false
-  concOfμ-l (∨-r₁ d) = false
-  concOfμ-l (∨-r₂ d) = false
-  concOfμ-l (∨-l d d₁) = false
-  concOfμ-l (μ-r d) = false
-  concOfμ-l (μ-l d x) = true
-  concOfμ-l hyp-use = false
-  concOfμ-l (cut-hyp-lflip d d₁ x) = false
-  concOfμ-l (cut-!hyp d d₁ x) = false
--}
-  hyp-used? : {Φ : HContext}{A B : Formula}(d : Φ ⊢ A ⇒ B) → Bool
-  hyp-used? unit-r     = false
-  hyp-used? (∧-r d d₁) = false
-  hyp-used? (∧-l₁ d)   = false
-  hyp-used? (∧-l₂ d)   = false
-  hyp-used? (∨-r₁ d)   = false
-  hyp-used? (∨-r₂ d)   = false
-  hyp-used? (∨-l d d₁) = false
-  hyp-used? (μ-r d)    = false
-  hyp-used? (μ-l d x)  = false
-  hyp-used? hyp-use    = true
-  hyp-used? (cut-!hyp d d₁ p ) = false
-  hyp-used? id-axiom   = false
-{-
-  concOfRight? : {Φ : HContext}{A B : Formula}(d : Φ ⊢ A ⇒ B) → Bool
-  concOfRight? unit-r       = true
-  concOfRight? (∧-r d d₁)   = true
-  concOfRight? (∧-l₁ d)     = false
-  concOfRight? (∧-l₂ d)     = false
-  concOfRight? (∨-r₁ d)     = true
-  concOfRight? (∨-r₂ d)     = true
-  concOfRight? (∨-l d d₁)   = false
-  concOfRight? (μ-r d)      = true
-  concOfRight? (μ-l d x)    = false
-  concOfRight? hyp-use      = false 
-  concOfRight? (cut-hyp-lflip d d₁ p ) = false
-  concOfRight? (cut-!hyp d d₁ p ) = false   
-  concOfRight? id-axiom     = false 
--}
-
-
-cut-elim : {Φ : HContext}{A B : Formula} → (Φ ⊢ A ⇒ B) → (Φ ⊢ A ⇒ B)
-
-cut-elim (cut-!hyp id-axiom d₁ x) = d₁
-cut-elim (cut-!hyp unit-r d₁ x) = {!!}
-cut-elim (cut-!hyp (∧-r d d₂) d₁ x) = {!!}
-cut-elim (cut-!hyp (∧-l₁ d) d₁ x) = {!!}
-cut-elim (cut-!hyp (∧-l₂ d) d₁ x) = {!!}
-cut-elim (cut-!hyp (∨-r₁ d) d₁ x) = {!!}
-cut-elim (cut-!hyp (∨-r₂ d) d₁ x) = {!!}
-cut-elim (cut-!hyp (∨-l d d₂) d₁ x) = {!!}
-cut-elim (cut-!hyp (μ-r d) d₁ x) = {!!}
-cut-elim (cut-!hyp (μ-l d x₁) d₁ x) = {!!}
-cut-elim (cut-!hyp hyp-use d₁ x) = {!!}
-cut-elim (cut-!hyp (cut-!hyp d d₂ x₁) d₁ x) = {!!}
-
-cut-elim id-axiom = {!!}
-cut-elim unit-r = {!!}
-cut-elim (∧-r d d₁) = {!!}
-cut-elim (∧-l₁ d) = {!!}
-cut-elim (∧-l₂ d) = {!!}
-cut-elim (∨-r₁ d) = {!!}
-cut-elim (∨-r₂ d) = {!!}
-cut-elim (∨-l d d₁) = {!!}
-cut-elim (μ-r d) = {!!}
-cut-elim (μ-l d x) = {!!}
-cut-elim hyp-use = {!!}
-
-
 
 {-
-
-{- false cases -}
-cut-elim (cut (∧-l₁ d) id-axiom x) = {!!}
-cut-elim (cut (∧-l₁ d) (μ-r d₁) x) = {!!}
-cut-elim (cut (∧-l₁ d) (cut d₁ d₂ x₁) x) = {!!}
-cut-elim (cut (∧-l₁ d) (∧-l₁ d₁) x) = {!!}
-cut-elim (cut (∧-l₁ d) (μ-l d₁ x₁) x) = {!!}
-cut-elim (cut (∧-l₁ d) (∨-l d₁ d₂) x) = {!!}
-cut-elim (cut (∧-l₁ d) (∧-l₂ d₁) x) = {!!}
-
-cut-elim (cut (∧-l₂ d) d₁ x) = {!!}
-cut-elim (cut (∨-r₂ d) d₁ x) = {!!}
-cut-elim (cut (∨-l d d₂) d₁ x) = {!!}
-cut-elim (cut (μ-l d x₁) d₁ x) = {!!}
-
-{-false cases-}
-cut-elim (cut hyp-use d₁ x) = {!!}
-cut-elim (cut (cut d d₂ x₁) d₁ x) = {!!}
-cut-elim (cut id-axiom d₁ x) = {!!}
-cut-elim (cut unit-r d₁ x) = {!!}
-cut-elim (cut (∧-r d d₂) d₁ x) = {!!}
-cut-elim (cut (μ-r d) d₁ x) = {!!}
-cut-elim (cut (∨-r₁ d) d₁ x) = {!!}
-
-
-cut-elim id-axiom = {!!}
-cut-elim unit-r = {!!}
-cut-elim (∧-r d d₁) = {!!}
-cut-elim (∧-l₁ d) = {!!}
-cut-elim (∧-l₂ d) = {!!}
-cut-elim (∨-r₁ d) = {!!}
-cut-elim (∨-r₂ d) = {!!}
-cut-elim (∨-l d d₁) = {!!}
-cut-elim (μ-r d) = {!!}
-cut-elim (μ-l d x) = {!!}
-cut-elim hyp-use = {!!}
-
-
-
-
+-- cut must be in proof tree for that one, p. 258
+reduce : {Φ : HContext}{A B : Formula}
+         → Φ ⊢ A ⇒ B
+         → Φ ⊢ B ⇒ C
+         → Φ ⊢ A ⇒ B
+reduce id-axiom = {!!}
+reduce unit-r = {!!}
+reduce (∧-r d d₁) = {!!}
+reduce (∧-l₁ d) = {!!}
+reduce (∧-l₂ d) = {!!}
+reduce (∨-r₁ d) = {!!}
+reduce (∨-r₂ d) = {!!}
+reduce (∨-l d d₁) = {!!}
+reduce (μ-r d) = {!!}
+reduce (μ-l d x) = {!!}
+reduce hyp-use = {!!}
 -}
+
+substVarWeak2 : {A B C : Formula}
+         → (just (var ⇒ C)) ⊢ A ⇒ B
+         → {pf : closedF C ≡ true}
+         → (just (var ⇒ C)) ⊢ (substVar C A) ⇒ B
+substVarWeak2 {unit} d {pf} = d
+substVarWeak2 {A ∧ A₁} id-axiom {pf} = ∧-r (∧-l₁ (substVarWeak2 {A = A} id-axiom {pf}) ) (∧-l₂ (substVarWeak2 id-axiom {closed-2 pf} ))
+substVarWeak2 {A ∧ A₁} unit-r {pf} = unit-r
+substVarWeak2 {A ∧ A₁} (∧-r d d₁) {pf} = {!!}
+substVarWeak2 {A ∧ A₁} (∧-l₁ d) {pf} = {!!}
+substVarWeak2 {A ∧ A₁} (∧-l₂ d) {pf} = {!!}
+substVarWeak2 {A ∧ A₁} (∨-r₁ d) {pf} = {!!}
+substVarWeak2 {A ∧ A₁} (∨-r₂ d) {pf} = {!!}
+substVarWeak2 {A ∧ A₁} (μ-r d) {pf} = {!!}
+
+
+substVarWeak2 {A ∨ A₁} d {pf} = {!!}
+substVarWeak2 {var} d {pf} = {!!}
+substVarWeak2 {μ A} d {pf} = {!!}
+
+
+cut : {Φ : HContext}{A B C : Formula}
+         → (d : Φ ⊢ A ⇒ B)
+         → {pf :  closedF C ≡ true}
+         → Φ ⊢ B ⇒ C
+         → Φ ⊢ A ⇒ C
+cut (μ-l d₁ x) {pf} unit-r = unit-r
+cut (μ-l d₁ x) {pf} (∨-r₁ d)
+ = ∨-r₁ (cut (μ-l d₁ x) {closed-1 pf} d)
+cut (μ-l d₁ x) {pf} (∨-r₂ d)
+ = ∨-r₂ (cut (μ-l d₁ x) {closed-2 pf} d)
+
+{- excluded if d₁ has hyp-use in them -}
+cut (μ-l d₁ x) {pf} (∨-l d d₂) = {!!}
+cut (μ-l d₁ x) {pf} (μ-l d x₁) = {!!}
+cut (μ-l d₁ x) {pf} hyp-use = {!!}
+cut (μ-l d₁ x) {pf} (∧-l₁ d) = {!!}
+cut (μ-l d₁ x) {pf} (∧-l₂ d) = {!!}
+cut unit-r      hyp-use = {!!}
+cut (∧-r d₁ d₂) hyp-use = {!!}
+cut (∨-r₁ d₁)   hyp-use = {!!}
+cut (∨-r₂ d₁)   hyp-use = {!!}
+cut (μ-r d₁)    hyp-use = {!!}
+cut hyp-use (∧-l₁ d₂) = {!!}
+cut hyp-use (∧-l₂ d₂) = {!!}
+cut hyp-use (∨-l d₂ d₃) = {!!}
+cut hyp-use (μ-l d₂ x) = {!!}
+{- / excluded if d₁ has hyp-use in them -}
+
+
+-- weaken d₁, weaken d
+cut (μ-r d₁) {pf} (μ-l d x) =  {!!}
+cut id-axiom hyp-use = hyp-use
+cut hyp-use hyp-use = id-axiom
+cut hyp-use id-axiom = hyp-use
+cut hyp-use unit-r = unit-r
+
+cut hyp-use {pf} (∨-r₁ d₂) = ∨-r₁ (cut hyp-use {closed-1 pf} d₂)
+cut hyp-use {pf} (∨-r₂ d₂) = ∨-r₂ (cut hyp-use {closed-2 pf} d₂)
+
+cut d₁ id-axiom = d₁
+cut d₁ unit-r = unit-r
+cut d₁ {pf} (∧-r d₂ d₃) = ∧-r (cut d₁ {closed-1 pf} d₂) (cut d₁ {closed-2 pf} d₃)
+cut id-axiom (∧-l₁ d₂) = ∧-l₁ d₂
+cut (∧-r d₁ d₃) {pf} (∧-l₁ d₂) = cut d₁ {pf} d₂
+cut (∧-l₁ d₁) {pf} d₂ = ∧-l₁ (cut d₁ {pf} d₂)
+cut (∧-l₂ d₁) {pf} d₂ = ∧-l₂ (cut d₁ {pf} d₂)
+cut id-axiom (μ-l d₂ x ) = μ-l d₂ x
+cut {_} {A} {B} {C} d₁ {pf} (μ-r {A = A'} d₂) = μ-r (cut d₁ {closed-subst {A'} {μ _} refl} d₂) 
+cut (μ-r d₁) {pf} (∨-r₁ d₂) = ∨-r₁ (cut (μ-r d₁) {closed-1 pf} d₂)
+cut id-axiom (∧-l₂ d₂) = ∧-l₂ d₂
+cut (∧-r d₁ d₃) {pf} (∧-l₂ d₂) = cut d₃ {closed-2 pf} d₂
+cut id-axiom (∨-r₁ d₂) = ∨-r₁ d₂
+cut unit-r {pf} (∨-r₁ d₂) = ∨-r₁ (cut unit-r {closed-1 pf } d₂)
+cut (∧-r d₁ d₃) {pf} (∨-r₁ d₂) = ∨-r₁ (cut (∧-r d₁ d₃) {closed-1 pf} d₂)
+cut (∨-r₁ d₁) {pf} (∨-r₁ d₂) = ∨-r₁ (cut (∨-r₁ d₁) {closed-1 pf} d₂)
+cut (∨-r₂ d₁) {pf} (∨-r₁ d₂) = ∨-r₁ (cut (∨-r₂ d₁) {closed-1 pf} d₂)
+cut d₁ {pf} (∨-r₂ d₂) = ∨-r₂ (cut d₁ {closed-2 pf} d₂)
+cut id-axiom (∨-l d₂ d₃) = ∨-l d₂ d₃
+cut (∨-r₁ d₁) {pf} (∨-l d₂ d₃) = cut d₁ {pf} d₂
+cut (∨-r₂ d₁) {pf} (∨-l d₂ d₃) = cut d₁ {pf} d₃
+cut (∨-l d d₂) {pf} d₁ = ∨-l (cut d {pf} d₁) (cut d₂ {closed-2 pf} d₁)
+
+
+
