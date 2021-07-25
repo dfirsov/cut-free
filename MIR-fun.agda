@@ -1,11 +1,9 @@
 {-#  OPTIONS --type-in-type #-}
 
+module MIR-fun where
 
-module MIR where
 
 open import Data.Empty
-
-
 open import Data.Product
 open import Data.Sum
 open import Function
@@ -23,7 +21,9 @@ open import Data.Maybe
 
 open import ListIn
 open import Formula
+open import FormulaExamples
 open import LFP
+
 
 HContext : Set
 HContext = Maybe Seq
@@ -52,34 +52,16 @@ infix 3 _⊢_
 data _⊢_ :  HContext  → Seq → Set where
   id-axiom : ∀ {Φ : HContext}{Γ : Context}{A : Formula}
         → Φ ⊢ A ∷ Γ ⇒ A
-
-  {- additive -}
+       
   unit-r : ∀ {Φ : HContext}{Γ : Context} → Φ ⊢ Γ ⇒ unit
-  {- additie unit has no left rule  -}
+  unit-l : ∀ {Φ : HContext}{Γ : Context}{C : Formula}
+    → Φ ⊢ Γ ⇒ C → Φ ⊢ unit ∷ Γ ⇒ C
 
-  {- multiplicative -}
-  Top-l : ∀ {Φ : HContext}{Γ : Context}{C : Formula}
-    → Φ ⊢ Γ ⇒ C → Φ ⊢ Top ∷ Γ ⇒ C
-  Top-r : ∀ {Φ : HContext}{C : Formula}
-    → Φ ⊢ [] ⇒ Top
-
-  {- additive -}
   ∧-r  : ∀ {Φ : HContext}{Γ : Context}{A B : Formula}
-             → Φ ⊢  Γ ⇒ A → Φ ⊢ Γ ⇒ B → Φ ⊢ Γ ⇒ A ∧ B 
-  ∧-l₁  : ∀ {Φ : HContext}{Γ : Context}{A B C : Formula}
-             → Φ ⊢  A ∷ Γ ⇒ C → Φ ⊢ A ∧ B ∷ Γ ⇒ C
-
-  ∧-l₂  : ∀ {Φ : HContext}{Γ : Context}{A B C : Formula}
-             → Φ ⊢  B ∷ Γ ⇒ C → Φ ⊢ A ∧ B ∷ Γ ⇒ C
-
-  {- multiplicative -}
-  ⊗-l  : ∀ {Φ : HContext}{Γ : Context}{A B C : Formula}
+             → Φ ⊢  Γ ⇒ A → Φ ⊢ Γ ⇒ B → Φ ⊢ Γ ⇒ A ∧ B     
+  ∧-l  : ∀ {Φ : HContext}{Γ : Context}{A B C : Formula}
              → Φ ⊢  A ∷ B ∷ Γ ⇒ C → Φ ⊢ A ∧ B ∷ Γ ⇒ C
-  ⊗-r  : ∀ {Φ : HContext}{Γ Δ : Context}{A B : Formula}
-             → Φ ⊢  Γ ⇒ A → Φ ⊢ Δ ⇒ B → Φ ⊢ Γ ++ Δ ⇒ A ∧ B 
-
-
-  {- additive -}
+  
   ∨-r₁  : ∀ {Φ : HContext}{Γ : Context}{A B : Formula}
              → Φ ⊢ Γ ⇒ A → Φ ⊢ Γ ⇒ A ∨ B
   ∨-r₂  : ∀ {Φ : HContext}{Γ : Context}{A B : Formula}
@@ -110,8 +92,7 @@ data _⊢_ :  HContext  → Seq → Set where
             → Φ ⊢ A ∷ Γ' ⇒ C   
             → Φ ⊢ Γ ⇒ C
 
-
-
+  cut : {Φ : HContext}{A : Context}{B C : Formula} → Φ ⊢ A ⇒ B → nothing ⊢ B ∷ [] ⇒ C → Φ ⊢ A ⇒ C
 
 
 ⟦_⟧H :  HContext → Maybe Set → Set
@@ -123,13 +104,9 @@ data _⊢_ :  HContext  → Seq → Set where
  → ⟦ Φ ⟧H ρ → ⟦ Γ ⟧C ρ → ⟦ A ⟧F ρ
 ⟦ id-axiom ⟧ ρ v (x , _) = x
 ⟦ unit-r ⟧ ρ v _ =  tt
-⟦ Top-l c ⟧ ρ v = λ { (a , b) → ⟦ c ⟧ ρ v b  }
-⟦ Top-r ⟧ ρ v = id
+⟦ unit-l c ⟧ ρ v = λ { (a , b) → ⟦ c ⟧ ρ v b  }
 ⟦ ∧-r A B ⟧ ρ v = λ φ → ⟦ A ⟧ ρ v φ ,  ⟦ B ⟧ ρ v φ
-⟦ ∧-l₁ d  ⟧ ρ v = λ φ → ⟦ d ⟧ ρ v (proj₁ (proj₁ φ) , proj₂ φ)
-⟦ ∧-l₂ d  ⟧ ρ v = λ φ → ⟦ d ⟧ ρ v (proj₂ (proj₁ φ) , proj₂ φ)
-⟦ ⊗-r d1 d2 ⟧ ρ v  = λ φ → ⟦ d1 ⟧ ρ v {!!} , {!!} -- ⟦ A ⟧ ρ v (a , b , c )
-⟦ ⊗-l A ⟧ ρ v ((a , b) , c) = ⟦ A ⟧ ρ v (a , b , c )
+⟦ ∧-l A ⟧ ρ v ((a , b) , c) = ⟦ A ⟧ ρ v (a , b , c )
 ⟦ ∨-r₁ {A = A} c ⟧ ρ v g = inj₁ (⟦ c ⟧ ρ v g)
 ⟦ ∨-r₂ {B = B} c ⟧ ρ v g = inj₂ (⟦ c ⟧ ρ v g)
 ⟦ ∨-l {A = A} {B} {_} a b ⟧ ρ v (x , g) = [_,_] (λ x → ⟦ a ⟧ ρ v (x , g)) ((λ x → ⟦ b ⟧ ρ v (x , g)))  x
@@ -139,5 +116,101 @@ data _⊢_ :  HContext  → Seq → Set where
 ⟦ hyp-use  ⟧ ρ a  = a
 ⟦ weakn c ⟧ ρ v = λ { (a , g) → ⟦ c ⟧ ρ v g }
 ⟦ exchng  {Γ = Γ}{Γ' = Γ'} {A = A} p c ⟧ ρ v q =  ⟦ c ⟧ ρ v  (f-lemm  {ρ}  {A} _ _ p q , G-lemm  {ρ}  {A} _ _ p q)  
+
+⟦ cut A B ⟧ ρ v g = ⟦ B ⟧ ρ tt (⟦ A ⟧ ρ v g , tt)
+
+
+
+
+hyp-free : {Φ : HContext}{Γ : Context}{A : Formula} → Φ ⊢ Γ ⇒ A → Bool
+hyp-free id-axiom = true
+hyp-free unit-r = true
+hyp-free (unit-l d) = hyp-free d
+hyp-free (∧-r d d₁) = hyp-free d & hyp-free d₁
+hyp-free (cut d d₁) = hyp-free d & hyp-free d₁
+hyp-free (∧-l d) = hyp-free d
+hyp-free (∨-r₁ d) = hyp-free d
+hyp-free (∨-r₂ d) = hyp-free d
+hyp-free (∨-l d d₁) = hyp-free d & hyp-free d₁
+hyp-free (μ-r d) = hyp-free d
+hyp-free (μ-l d x x₁) = hyp-free d
+hyp-free hyp-use = false
+hyp-free (weakn d) = hyp-free d
+hyp-free (exchng x d) = hyp-free d
+
+isJust : HContext → Bool
+isJust (just x) = true
+isJust nothing = false
+
+
+notRaw : nothing ⊢ BoolRaw ∷ [] ⇒ BoolRaw
+notRaw = ∨-l (∨-r₂ unit-r) (∨-r₁ unit-r)
+
+oddity : nothing ⊢ NatRaw ∷ [] ⇒ BoolRaw
+oddity = μ-l (∨-l (∨-r₁ unit-r) (cut hyp-use notRaw)) refl refl
+
+odd1  : ⟦ oddity ⟧ nothing  tt  (z , tt) ≡ inj₁ tt
+odd1 = refl
+
+odd2  : ⟦ oddity ⟧ nothing  tt  (s z , tt) ≡ inj₂ tt
+odd2 = refl
+
+odd3  : ⟦ oddity ⟧ nothing  tt  (s (s z) , tt) ≡ inj₁ tt
+odd3 = refl
+
+
+μBoolRaw : Formula
+μBoolRaw = μ (unit ∨ unit)
+
+μBool : Set
+μBool = ⟦ μBoolRaw ⟧F nothing
+
+μf : μBool
+μf = In (inj₁ tt)
+
+μt : μBool
+μt = In (inj₂ tt)
+
+WeirdRaw : Formula
+WeirdRaw = μ (unit ∨ (μBoolRaw ∧ var))
+
+Weird : Set
+Weird = ⟦ WeirdRaw ⟧F nothing
+
+wb : Weird
+wb = In (inj₁ tt)
+
+ws : Weird → μBool → Weird
+ws w μb = In (inj₂ (μb , w))
+
+prependRaw : nothing ⊢ WeirdRaw ∧ μBoolRaw ∷ [] ⇒ WeirdRaw
+prependRaw = ∧-l (μ-l (∨-l (exchng (therex herex) (μ-r (∨-r₂ (∧-r id-axiom (μ-r (∨-r₁ unit-r) ))))) (∧-l (μ-r (∨-r₂ (∧-r id-axiom (weakn hyp-use)))))) refl refl)
+
+revRaw1 : just (var ∷ [] ⇒ WeirdRaw) ⊢ μBoolRaw ∷ var ∷ [] ⇒ WeirdRaw ∧ μBoolRaw
+revRaw1 = ∧-r (weakn hyp-use) id-axiom
+
+reverseRaw : nothing ⊢ WeirdRaw ∷ [] ⇒ WeirdRaw 
+reverseRaw = μ-l (∨-l (μ-r (∨-r₁ unit-r)) (∧-l (cut revRaw1 prependRaw)  )) refl refl
+
+headRaw : nothing ⊢ WeirdRaw ∷ [] ⇒ μBoolRaw 
+headRaw = μ-l (∨-l (μ-r (∨-r₁ unit-r)) (∧-l id-axiom)) refl refl
+
+sepFunc : nothing ⊢ WeirdRaw ∷ [] ⇒ μBoolRaw
+sepFunc = cut reverseRaw  headRaw
+
+sepFunc' : nothing ⊢ μBoolRaw ∷ [] ⇒ BoolRaw
+sepFunc' = μ-l id-axiom refl refl
+
+ss : nothing ⊢ WeirdRaw ∷ [] ⇒ BoolRaw
+ss = cut sepFunc sepFunc'
+
+
+
+--  brr : (d : nothing ⊢ WeirdRaw ∷ [] ⇒ BoolRaw) → ⟦ d ⟧ nothing  tt  (ws (ws wb μf) μt , tt) ≡ ⟦ d ⟧ nothing  tt  (ws (ws wb μt) μt , tt)
+hod1 :  ⟦ ss ⟧ nothing  tt  (ws (ws wb μf) μt , tt) ≡ inj₁ tt
+hod1 = refl
+
+hod2 :  ⟦ ss ⟧ nothing  tt  (ws (ws wb μt) μt , tt) ≡ inj₂ tt
+hod2 = refl
 
 

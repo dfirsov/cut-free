@@ -325,7 +325,7 @@ lem = refl
 μt = In (inj₁ tt)
 
 WeirdRaw : Formula 0
-WeirdRaw = μ (unit ∨ (μ (unit ∨ unit) ∧ var Data.Fin.zero))
+WeirdRaw = μ (unit ∨ (μ (unit ∨ unit) ∧ var zero))
 
 
 Weird : Set

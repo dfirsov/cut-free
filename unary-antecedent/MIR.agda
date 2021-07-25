@@ -1,6 +1,6 @@
 {-#  OPTIONS --type-in-type #-}
 
-module MIR2 where
+module MIR where
 
 open import Data.Empty
 
@@ -26,6 +26,7 @@ open import LFP
 
 postulate
   ∣-1 : ∀ a b → b ≡ true → a ∣ b ≡ true
+  ∣-2 : ∀ a b → a ≡ true → a ∣ b ≡ true
 
 HContext : Set
 HContext = Maybe Seq -- ≈ (Seq + 1)
@@ -219,42 +220,6 @@ substVarWeak3 (μ-l d x) p = μ-l d x
 substVarWeak3 hyp-use ()
 
 
-cutPredicate1 : {Φ1 Φ2 : HContext}{A B C D : Formula}
-         → Φ1 ⊢ A ⇒ B
-         → Φ2 ⊢ C ⇒ D
-         → Bool
-cutPredicate1 d1 id-axiom = true
-cutPredicate1 d1 unit-r = true
-cutPredicate1 d1 (∧-r d2 d3) = cutPredicate1 d1 d2 & cutPredicate1 d1 d3
-cutPredicate1 d1 (∧-l₁ d2) = hyp-free d1
-cutPredicate1 d1 (∧-l₂ d2) = hyp-free d1
-cutPredicate1 d1 (∨-r₁ d2) = cutPredicate1 d1 d2
-cutPredicate1 d1 (∨-r₂ d2) = cutPredicate1 d1 d2
-cutPredicate1 d1 (∨-l d2 d3) = hyp-free d1
-cutPredicate1 d1 (μ-r d2) = cutPredicate1 d1 d2
-cutPredicate1 d1 (μ-l d2 x) = hyp-free d1
-cutPredicate1 d1 hyp-use = true
-
-
-cutPredicate2 : {Φ1 Φ2 : HContext}{A B C D : Formula}
-         → Φ1 ⊢ A ⇒ B
-         → Φ2 ⊢ C ⇒ D
-         → Bool
-cutPredicate2 id-axiom d2 = true
-cutPredicate2 unit-r d2 = hyp-free d2
-cutPredicate2 (∧-r d1 d3) d2 = hyp-free d2
-cutPredicate2 (∨-r₁ d1) d2 = hyp-free d2
-cutPredicate2 (∨-r₂ d1) d2 = hyp-free d2
-cutPredicate2 (μ-r d1) d2 = hyp-free d2
-cutPredicate2 (∧-l₁ d1) d2 = cutPredicate2 d1 d2
-cutPredicate2 (∧-l₂ d1) d2 = cutPredicate2 d1 d2
-cutPredicate2 (∨-l d1 d3) d2 = cutPredicate2 d1 d2 & cutPredicate2 d3 d2
-cutPredicate2 (μ-l d1 x) (∨-r₁ d2) = cutPredicate2 d1 d2
-cutPredicate2 (μ-l d1 x) (∨-r₂ d2) = cutPredicate2 d1 d2
-cutPredicate2 (μ-l d1 x) d2 = cutPredicate2 d1 d2
-cutPredicate2 hyp-use d2 = true
-
-
 hfw : {Φ₁ Φ₂ : HContext}{A B : Formula}
   → (d : Φ₁ ⊢ A ⇒ B)
   → (pf : hyp-free d ≡ true)
@@ -311,10 +276,10 @@ cut (μ-l d₁ x) {pf} (∨-r₂ d) {pf'} {pf''}
  = ∨-r₂ (cut (μ-l d₁ x) {closed-2 pf} d {pf'} {pf''})
 
 
-cut (μ-l d₁ x) {pf} (∧-l₁ d) {pf'} {pf''} = μ-l (cut (hyp-free-weaken d₁ (pf' refl)) {pf} (∧-l₁ d) {{!!}} {λ q → pf'' (hfw d₁ {!!} q )} ) pf
-cut (μ-l d₁ x) {pf} (∧-l₂ d) {pf'} {pf''} = μ-l (cut (hyp-free-weaken d₁ (pf' refl)) {pf} (∧-l₂ d) {{!!}} {λ q → pf'' (hfw d₁ {!!} q )}) pf
-cut (μ-l d₁ x) {pf} (∨-l d d₂) {pf'} {pf''} = μ-l (cut (hyp-free-weaken d₁ (pf' refl)) {pf} (∨-l d d₂) {{!!}} {λ q → pf'' (hfw d₁ {!!} q )}) pf
-cut (μ-l d₁ x) {pf} (μ-l d x₁) {pf'} {pf''} = μ-l (cut (hyp-free-weaken d₁ (pf' refl)) {pf} (μ-l d x₁) {{!!}} {λ q → pf'' (hfw d₁ {!!} q )}) pf
+cut (μ-l d₁ x) {pf} (∧-l₁ d) {pf'} {pf''} = μ-l (cut (hyp-free-weaken d₁ (pf' refl)) {pf} (∧-l₁ d) {λ q → hfw2 d₁ (pf' refl) } {λ q → pf'' (hfw d₁ (pf' refl) q )} ) pf
+cut (μ-l d₁ x) {pf} (∧-l₂ d) {pf'} {pf''} = μ-l (cut (hyp-free-weaken d₁ (pf' refl)) {pf} (∧-l₂ d) {λ q → hfw2 d₁ (pf' refl) } {λ q → pf'' (hfw d₁ (pf' refl) q )}) pf
+cut (μ-l d₁ x) {pf} (∨-l d d₂) {pf'} {pf''} = μ-l (cut (hyp-free-weaken d₁ (pf' refl)) {pf} (∨-l d d₂) {λ q → hfw2 d₁ (pf' refl) } {λ q → pf'' (hfw d₁ (pf' refl) q )}) pf
+cut (μ-l d₁ x) {pf} (μ-l d x₁) {pf'} {pf''} = μ-l (cut (hyp-free-weaken d₁ (pf' refl)) {pf} (μ-l d x₁) {λ q → hfw2 d₁ (pf' refl) } {λ q → pf'' (hfw d₁ (pf' refl) q )}) pf
 
 cut hyp-use (∧-l₁ d₂) {pf'} with pf' refl
 ... | ()
@@ -338,14 +303,14 @@ cut hyp-use {pf} (∨-r₂ d₂) {pf'} = ∨-r₂ (cut hyp-use {closed-2 pf} d�
 
 cut d₁ id-axiom = d₁
 cut d₁ unit-r = unit-r
-cut d₁ {pf} (∧-r d₂ d₃) {pf'} {pf''} = ∧-r (cut d₁ {closed-1 pf} d₂ {{!!}} {  λ q → closed-1 (pf'' q) }) (cut d₁ {closed-2 pf} d₃ {{!!}} {λ q → closed-2 (pf'' q)})
-cut (∧-r d₁ d₃) {pf} (∧-l₁ d₂) {pf'} {pf''} = cut d₁ {pf} d₂ {{!!}} {λ _ → pf'' refl}
-cut (∧-l₁ d₁) {pf} d₂ {pf'} {pf''} = ∧-l₁ (cut d₁ {pf} d₂ {{!!}} {pf''})
-cut (∧-l₂ d₁) {pf} d₂ {pf'} {pf''} = ∧-l₂ (cut d₁ {pf} d₂ {{!!}} {pf''})
+cut d₁ {pf} (∧-r d₂ d₃) {pf'} {pf''} = ∧-r (cut d₁ {closed-1 pf} d₂ {λ q → pf' (∣-2 _ _ q)} {  λ q → closed-1 (pf'' q) }) (cut d₁ {closed-2 pf} d₃ {λ q → pf' (∣-1 _ _ q)} {λ q → closed-2 (pf'' q)})
+cut (∧-r d₁ d₃) {pf} (∧-l₁ d₂) {pf'} {pf''} = cut d₁ {pf} d₂ {λ q → closed-1 (pf' refl)} {λ _ → pf'' refl}
+cut (∧-l₁ d₁) {pf} d₂ {pf'} {pf''} = ∧-l₁ (cut d₁ {pf} d₂ {pf'} {pf''})
+cut (∧-l₂ d₁) {pf} d₂ {pf'} {pf''} = ∧-l₂ (cut d₁ {pf} d₂ {pf'} {pf''})
 
 cut {_} {A} {B} {C} d₁ {pf} (μ-r {A = A'} d₂) {pf'} {pf''} = μ-r (cut d₁ {closed-subst {A'} {μ _} refl} d₂ {pf'} {pf''}) 
 
-cut (∧-r d₁ d₃) {pf} (∧-l₂ d₂) {pf'} {pf''} = cut d₃ {closed-2 pf} d₂ {{!!}} {λ _ → pf'' refl}
+cut (∧-r d₁ d₃) {pf} (∧-l₂ d₂) {pf'} {pf''} = cut d₃ {closed-2 pf} d₂ {λ q → closed-2 (pf' refl)} {λ _ → pf'' refl}
 
 cut id-axiom (∧-l₁ d₂) = ∧-l₁ (nothing-to-Φ d₂)
 cut id-axiom (μ-l d₂ x ) = μ-l d₂ x
@@ -367,9 +332,9 @@ cut (∨-r₂ d₁) {pf} (∨-r₂ d₂) {pf'} {pf''} = ∨-r₂ (cut (∨-r₂ 
 cut (μ-r d₁) {pf} (∨-r₂ d₂) {pf'} {pf''} = ∨-r₂ (cut (μ-r d₁) {closed-2 pf} d₂ {pf'} {pf''})
 
 cut id-axiom (∨-l d₂ d₃) = ∨-l (nothing-to-Φ d₂) (nothing-to-Φ d₃)
-cut (∨-r₁ d₁) {pf} (∨-l d₂ d₃) {pf'} {pf''} = cut d₁ {pf} d₂ {{!!}} {λ _ → closed-1 (pf'' refl)}
-cut (∨-r₂ d₁) {pf} (∨-l d₂ d₃) {pf'} {pf''} = cut d₁ {pf} d₃ {{!!}} {λ _ → closed-2 (pf'' refl)}
-cut (∨-l d d₂) {pf} d₁ {pf'} {pf''} = ∨-l (cut d {pf} d₁ {{!!}} {{!!}}) (cut d₂ {closed-2 pf} d₁ {{!pf'!}} {λ q → pf'' (∣-1  _ _ q)})
+cut (∨-r₁ d₁) {pf} (∨-l d₂ d₃) {pf'} {pf''} = cut d₁ {pf} d₂ {λ q → pf' refl} {λ _ → closed-1 (pf'' refl)}
+cut (∨-r₂ d₁) {pf} (∨-l d₂ d₃) {pf'} {pf''} = cut d₁ {pf} d₃ {λ q → pf' refl} {λ _ → closed-2 (pf'' refl)}
+cut (∨-l d d₂) {pf} d₁ {pf'} {pf''} = ∨-l (cut d {pf} d₁ {λ q → closed-1 (pf' q)} {λ q → pf'' (∣-2 _ _ q)}) (cut d₂ {closed-2 pf} d₁ {λ q → closed-2 (pf' q)} {λ q → pf'' (∣-1  _ _ q)})
 
 
 
