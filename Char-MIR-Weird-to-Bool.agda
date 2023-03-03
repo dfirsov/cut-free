@@ -41,9 +41,6 @@ hyp-free hyp-use = false
 hyp-free (weakn d) = hyp-free d
 hyp-free (exchng x d) = hyp-free d
 
-isJust : HContext → Bool
-isJust (just x) = true
-isJust nothing = false
 
 
 
@@ -71,9 +68,54 @@ wb = In (inj₁ tt)
 ws : Weird → μBool → Weird
 ws w μb = In (inj₂ (μb , w))
 
+bool-assoc : {a b c : Bool} → a & b & c ≡ (a & b) & c
+bool-assoc {false} {false} {false} = refl
+bool-assoc {false} {false} {true} = refl
+bool-assoc {false} {true} {false} = refl
+bool-assoc {false} {true} {true} = refl
+bool-assoc {true} {false} {false} = refl
+bool-assoc {true} {false} {true} = refl
+bool-assoc {true} {true} {false} = refl
+bool-assoc {true} {true} {true} = refl
+
+bool-lemm : {a b c : Bool} → (a & b) & c ≡ true → a & c ≡ true
+bool-lemm {false} {false} {false} ()
+bool-lemm {false} {false} {true} ()
+bool-lemm {false} {true} {false} ()
+bool-lemm {false} {true} {true} ()
+bool-lemm {true} {false} {false}()
+bool-lemm {true} {false} {true}  () 
+bool-lemm {true} {true} {false} ()
+bool-lemm {true} {true} {true} a = refl
+
+bool-lemm2 : {a b c : Bool} → (a & b) & c ≡ true → b & c ≡ true
+bool-lemm2 {true} q = q
+
+bool-lemm3 : {a b : Bool} → a & b ≡ true → b ≡ true
+bool-lemm3 {true} p = p
+
+bool-lemm4 : {a b : Bool} → a ≡ true →  b ≡ true → a & b ≡ true
+bool-lemm4  refl refl = refl
+
+bool-lemm5 : {a b : Bool} → a & b ≡ true → a ≡ true
+bool-lemm5 {false} {false} ()
+bool-lemm5 {true} {false} a = refl
+bool-lemm5 {false} {true} ()
+bool-lemm5 {true} {true} p = p
 
 
+bool-lemm6 : {a b : Bool} → a ≡ true → a & b ≡ b
+bool-lemm6 {false} ()
+bool-lemm6 {true} p = refl
 
+
+rbd-d : ∀ {Γ Γ' A} →  A ∈ Γ , Γ' → var-freeC Γ ≡ true → var-freeC Γ' ≡ true
+rbd-d herex v = bool-lemm3 v
+rbd-d (therex h) v = bool-lemm4 (bool-lemm5 v) (rbd-d h ((bool-lemm3 v)))
+
+rbd-d' : ∀ {Γ Γ' A} →  A ∈ Γ , Γ' → var-freeC Γ ≡ true → var-freeF A ≡ true
+rbd-d' herex v = bool-lemm5 v
+rbd-d' (therex h) v = rbd-d' h (bool-lemm3 v)
 
 rrb'''d :  {A B : Formula}{Γ Γ' : Context}
  (d : just (var ∷ Γ' ⇒ A) ⊢ Γ ⇒ B)
@@ -83,15 +125,15 @@ rrb'''d id-axiom p = refl
 rrb'''d unit-r p = refl
 rrb'''d (unit-l d) p = rrb'''d d p
 rrb'''d (∧-r d d₁) p rewrite rrb'''d d p | rrb'''d d₁ p = refl
-rrb'''d (∧-l d) p = rrb'''d d {!p!}
+rrb'''d (∧-l {A = A} d) p = rrb'''d d (trans (bool-assoc {var-freeF A}) p)
 rrb'''d (∨-r₁ d) p = rrb'''d d p
 rrb'''d (∨-r₂ d) p = rrb'''d d p
-rrb'''d (∨-l d d₁) p rewrite rrb'''d d {!!} | rrb'''d d₁ {!!} = refl
+rrb'''d (∨-l {A = A} d d₁) p rewrite rrb'''d d (bool-lemm {var-freeF A} p) | rrb'''d d₁ ((bool-lemm2 {var-freeF A } p)) = refl
 rrb'''d (μ-r d) p = rrb'''d d p
 rrb'''d (μ-l d x x₁) p = rrb'''d  d p
 rrb'''d hyp-use ()
 rrb'''d (weakn d) p = rrb'''d d  (closed-2 p)
-rrb'''d (exchng x d) p = rrb'''d d {!!}
+rrb'''d (exchng x d) p = rrb'''d d (bool-lemm4 (rbd-d' x p) (rbd-d x p))
 
 
 rrb'''c :  (d  : just (var ∷ [] ⇒ unit ∨ unit) ⊢  var ∷ [] ⇒ unit)
@@ -240,13 +282,13 @@ rrb' (∨-r₁ d) pf φ w b rewrite rrb'' d  with pf
 ... | () 
 rrb' (∨-r₂ d) pf φ w b rewrite rrb'' d  with pf
 ... | () 
-rrb' (∨-l d d₁) pf φ w b = rrq' d₁ {!!} φ w b
+rrb' (∨-l d d₁) pf φ w b = rrq' d₁ (trans (sym (bool-lemm6 (rrb'''d d refl)) ) pf) φ w b 
 rrb' (weakn d) pf φ w b rewrite rrb'''d d refl with pf
 ... | () 
 rrb' (exchng herex d) pf φ w b = rrb' d pf φ w b
 rrb' (exchng (therex ()) d) pf φ w b
 
-
+{-
 rrw111 : (d : just (var ∷ [] ⇒ unit ∨ (unit ∨ unit)) ⊢ var ∷ [] ⇒ unit)
     → hyp-free d ≡ true
 rrw111 unit-r = refl
@@ -501,7 +543,6 @@ qqq''' (exchng herex d) {pf} p w = qqq''' d {pf} _ _
 qqq''' (exchng (therex ()) d) p w
 
 
-
 kkk''' : {Φ : HContext} (d : Φ ⊢ var ∷ [] ⇒ unit ∨ (unit ∨ unit))
   → {pf : hyp-free d ≡ true}
   → (φ : ⟦ Φ ⟧H (just Weird))
@@ -658,11 +699,11 @@ mutual
   brru : (d : nothing ⊢ WeirdRaw ∷ [] ⇒ unit ∨ BoolRaw) → ⟦ d ⟧ nothing  tt  (ws (ws wb μf) μt , tt) ≡ ⟦ d ⟧ nothing  tt  (ws (ws wb μt) μt , tt)
   brru (∨-r₁ d) = refl
   brru (∨-r₂ d) rewrite brr d = refl
-  brru (μ-l d x x₁) with (hyp-free d)  | inspect hyp-free  d
-  brru (μ-l d x x₁) | false | Reveal_·_is_.[ eq ] =  {!!}
 
-{-
-rewrite  rrb d eq (λ q →
+  brru (μ-l d x x₁) with (hyp-free d)  | inspect hyp-free  d  
+  brru (μ-l d x x₁) | b | Reveal_·_is_.[ eq ]  = {!!}
+
+ {-rewrite  rrb d eq (λ q →
          Fold
          (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
          (proj₁ q) tt) (ws wb μf) μt
@@ -679,9 +720,13 @@ rewrite  rrb d eq (λ q →
          Fold
          (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
          (proj₁ q) tt) (wb) μt
-    =  {!!}
+    =  {!rrb d eq (λ q →
+         Fold
+         (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
+         (proj₁ q) tt) (ws wb μf) μt!}
+
 -}
-  brru (μ-l d x x₁) | true | Reveal_·_is_.[ eq ] = kkk d {eq} _ _ _
+  brru (μ-l d x x₁) | true | Reveal_·_is_.[ eq ]  = kkk d {eq} _ _ _
   brru (weakn (∨-r₁ d)) = refl
   brru (weakn (∨-r₂ d)) = refl
   brru (weakn (exchng x d)) = refl
@@ -717,110 +762,4 @@ rewrite  rrb d eq (λ q →
   brr (weakn (exchng () d))
   brr (exchng herex d) = brr d
   brr (exchng (therex ()) d)
-
-
-{-
-mutual
-
-  dqqq''p : {Φ : HContext} (d : Φ ⊢  var ∷ μ (unit ∨ unit)  ∷ [] ⇒ (unit ∨ unit))
-    → {pf : hyp-free d ≡ true}
-    → {pf'' : isJust Φ ≡ true}    
-    → (φ : ⟦ Φ ⟧H (just Weird))
-    → (w : Weird)
-    → ⟦ d ⟧ (just Weird) φ (w , μf , tt) ≡  ⟦ d ⟧ (just Weird) φ (w , μt , tt)
-  dqqq''p (∨-r₁ d) {pf} φ w  = refl
-  dqqq''p (∨-r₂ d) {pf} φ w  = refl
-  dqqq''p hyp-use {()} φ w   
-  dqqq''p (weakn (∨-r₁ d)) {pf} φ w = refl
-  dqqq''p (weakn (∨-r₂ d)) {pf} φ w = refl
-  dqqq''p (weakn (μ-l d x x₁)) {pf} φ w = {!!}
-  dqqq''p (weakn hyp-use) {()} φ w
-  dqqq''p (weakn (weakn d)) {pf} φ w = refl
-  dqqq''p (weakn (exchng x d)) {pf} φ w = {!!}
-  dqqq''p (exchng herex d) {pf}{pf'} φ w  = dqqq''p d {pf}{pf'} _ w  
-  dqqq''p (exchng (therex herex) d) {pf}{pf'} φ w  = dqqq''q d {pf}{pf'} _ w 
-  dqqq''p (exchng (therex (therex ())) d) {pf} φ w     
-
-
-  dqqq''q : {Φ : HContext} (d : Φ ⊢   μ (unit ∨ unit) ∷ var ∷ [] ⇒ (unit ∨ unit))
-    → {pf : hyp-free d ≡ true}
-    → {pf'' : isJust Φ ≡ true}
-    → (φ : ⟦ Φ ⟧H (just Weird))
-    → (w : Weird)
-    → ⟦ d ⟧ (just Weird) φ (μf , w , tt) ≡  ⟦ d ⟧ (just Weird) φ ((μt , w , tt))
-  dqqq''q (∨-r₁ d) φ w = refl
-  dqqq''q (∨-r₂ d) φ w  = refl
-  dqqq''q hyp-use {()} φ w 
-  dqqq''q (μ-l d x ()) φ w 
-  dqqq''q (weakn d) {pf} φ w  rewrite qqq''' d {pf} φ w = refl 
-  dqqq''q (exchng herex d) {pf}{pf'} φ w  = dqqq''q d {pf}{pf'} φ w 
-  dqqq''q (exchng (therex herex) d) {pf} {pf'} φ w  = dqqq''p d {pf}{pf'} φ w 
-  dqqq''q (exchng (therex (therex ())) d) φ w 
-
-
-dqqq'' :  {Φ : HContext}(d : Φ ⊢   (μ (unit ∨ unit) ∧ var) ∷ [] ⇒ (unit ∨ unit))
-  → {pf : hyp-free d ≡ true}
-  → {pf'' : isJust Φ ≡ true}  
-  → (φ : ⟦ Φ ⟧H (just Weird))
-  → (w : Weird)
-  → ⟦ d ⟧ (just Weird) φ ((μf , w) , tt) ≡  ⟦ d ⟧ (just Weird) φ ( (μt , w) , tt)
-dqqq'' (∧-l d) {pf} {pf'} φ w  = dqqq''q d {pf}{pf'}  _ _
-dqqq'' (∨-r₁ d) φ w  = refl
-dqqq'' (∨-r₂ d) φ w  = refl
-dqqq'' hyp-use {()} φ w     
-dqqq'' (weakn (∨-r₁ d)) φ w  = refl
-dqqq'' (weakn (∨-r₂ d)) φ w  = refl
-dqqq'' (weakn hyp-use) {()} φ w 
-dqqq'' (weakn (exchng () d)) φ w 
-dqqq'' (exchng herex d) {pf} {pf'} φ w  = dqqq'' d {pf} {pf'} _ _ 
-dqqq'' (exchng (therex ()) d) φ w 
-
-
-dqqq' : {Φ : HContext}(d : Φ ⊢  unit ∨ (μ (unit ∨ unit) ∧ var) ∷ [] ⇒ (unit ∨ unit))
-  → {pf : hyp-free d ≡ true}
-  → {pf'' : isJust Φ ≡ true}
-  → (φ : ⟦ Φ ⟧H (just Weird))
-  → (w : Weird)
-  → ⟦ d ⟧ (just Weird) φ (inj₂ (μf , w) , tt) ≡  ⟦ d ⟧ (just Weird) φ (inj₂ (μt , w) , tt)
-
-dqqq' (∨-r₁ d) φ w  = refl
-dqqq' (∨-r₂ d) φ w  = refl
-dqqq' {Φ} (∨-l d d₁) {pf} {pf'} φ w = dqqq'' {Φ} d₁ {closed-2 pf}{pf'}  _ _
-dqqq' (weakn (∨-r₁ d)) φ w = refl
-dqqq' hyp-use {()} φ w  
-dqqq' (weakn (∨-r₂ d)) φ w = refl
-dqqq' (weakn hyp-use) {()} φ w 
-dqqq' (weakn (exchng () d)) φ w 
-dqqq' (exchng herex d) {pf} {pf''} φ w  = dqqq' d {pf} {pf''} φ w 
-dqqq' (exchng (therex ()) d) φ w 
-
-
-
-mutual
-  brrum : (d : nothing ⊢ WeirdRaw ∷ [] ⇒ BoolRaw) → ⟦ d ⟧ nothing  tt  ( (ws wb μf) , tt) ≡ ⟦ d ⟧ nothing  tt  ((ws wb μt) , tt)
-  brrum (μ-l d x x₁) with (hyp-free d)  | inspect hyp-free  d
-  brrum (μ-l d x x₁) | false | Reveal_·_is_.[ eq ]  rewrite  rrb' d eq (λ q →
-         Fold
-         (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
-         (proj₁ q) tt) (ws wb μf) μt
-   |  rrb' d eq (λ q →
-         Fold
-         (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
-         (proj₁ q) tt) (wb) μf
-   | rrb' d eq (λ q →
-         Fold
-         (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
-         (proj₁ q) tt) (ws wb μt) μt
-     | rrb' d eq (λ q →
-         Fold
-         (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
-         (proj₁ q) tt) (wb) μt  = refl
-  brrum (μ-l d x x₁) | true | Reveal_·_is_.[ eq ] = dqqq' d {eq} {refl} _ _ 
-  brrum (∨-r₁ d) = refl
-  brrum (∨-r₂ d) = refl
-  brrum (weakn (∨-r₁ d)) = refl
-  brrum (weakn (∨-r₂ d)) = refl
-  brrum (weakn (exchng () d))
-  brrum (exchng herex d) = brrum d
-  brrum (exchng (therex ()) d)
 -}
