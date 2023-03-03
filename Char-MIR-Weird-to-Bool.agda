@@ -10,9 +10,9 @@ open import Function
 open import Data.Nat
 open import Data.Fin hiding (_+_)
 open import Data.List
-open import Data.List.Any.Membership.Propositional using (_∈_)
+open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Any  hiding (map)
-open import Data.Vec hiding (map; _++_; _∈_)
+open import Data.Vec 
 open import Data.Unit hiding (_≟_)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
@@ -659,7 +659,10 @@ mutual
   brru (∨-r₁ d) = refl
   brru (∨-r₂ d) rewrite brr d = refl
   brru (μ-l d x x₁) with (hyp-free d)  | inspect hyp-free  d
-  brru (μ-l d x x₁) | false | Reveal_·_is_.[ eq ] rewrite  rrb d eq (λ q →
+  brru (μ-l d x x₁) | false | Reveal_·_is_.[ eq ] =  {!!}
+
+{-
+rewrite  rrb d eq (λ q →
          Fold
          (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
          (proj₁ q) tt) (ws wb μf) μt
@@ -676,7 +679,8 @@ mutual
          Fold
          (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
          (proj₁ q) tt) (wb) μt
-    =  refl
+    =  {!!}
+-}
   brru (μ-l d x x₁) | true | Reveal_·_is_.[ eq ] = kkk d {eq} _ _ _
   brru (weakn (∨-r₁ d)) = refl
   brru (weakn (∨-r₂ d)) = refl
@@ -705,7 +709,7 @@ mutual
          Fold
          (λ Y rf rv w → ⟦ d ⟧ (just Y) (λ q₁ → rf (proj₁ q₁) w) (rv , w))
          (proj₁ q) tt) (wb) μt
-    =  refl
+    =  {!!}
   brr (μ-l d x x₁) | true | Reveal_·_is_.[ eq ] = qqq' d {eq} _ _ _
 
   brr (weakn (∨-r₁ d)) = refl

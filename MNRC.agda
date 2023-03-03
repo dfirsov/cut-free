@@ -3,10 +3,10 @@
 
 open import Data.Nat
 open import Data.Fin
-open import Data.List
-open import Data.List.Any.Membership.Propositional using (_∈_)
-open import Data.List.Any  hiding (map)
-open import Data.Vec hiding (map; _++_; _∈_)
+open import Data.List hiding (lookup)
+open import Data.List.Membership.Propositional using (_∈_)
+open import Data.List.Any  hiding (map; lookup)
+open import Data.Vec hiding (map; _++_;  insert)
 open import Data.Unit hiding (_≟_)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
@@ -154,7 +154,7 @@ Fold {F} alg (IN {X} f v) = alg X (Fold alg ∘ f) v
 ⟦ unit ⟧F ρ = ⊤
 ⟦ A ∧ B ⟧F ρ = ⟦ A ⟧F ρ  × ⟦ B ⟧F ρ
 ⟦ A ∨ B ⟧F ρ = ⟦ A ⟧F ρ  ⊎ ⟦ B ⟧F ρ
-⟦ var x ⟧F ρ = lookup x ρ
+⟦ var x ⟧F ρ = {!!} --lookup x ρ
 ⟦ μ A ⟧F ρ = Mu λ (X : Set) → ⟦ A ⟧F (X ∷ ρ)  
 
 
@@ -196,7 +196,7 @@ substEq (var (suc x)) = {!!}
 substEq (μ A) = {!substEq  A!}
 
 
-
+{-
 inser-punch : {X : Set} {n : ℕ} → (x : X) → (j : Fin n) → (i : Fin (suc n)) → (ρ : Vec X n) →  lookup j ρ ≡ lookup (punchIn i j) (insert x i ρ)
 inser-punch x j zero ρ = refl
 inser-punch x zero (suc i) (x₁ ∷ ρ) = refl
@@ -364,3 +364,4 @@ doh2 : ⟦ doh ⟧ [] tt  (ws (ws wb μf) μt , tt) ≡ t
 doh2 = refl
 
 
+-}

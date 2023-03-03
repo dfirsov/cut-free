@@ -10,9 +10,9 @@ open import Function
 open import Data.Nat
 open import Data.Fin hiding (_+_)
 open import Data.List
-open import Data.List.Any.Membership.Propositional using (_∈_) 
+open import Data.List.Membership.Propositional using (_∈_) 
 open import Data.List.Any  hiding (map)
-open import Data.Vec hiding (map; _++_; _∈_)
+open import Data.Vec
 open import Data.Unit hiding (_≟_)
 open import Relation.Binary.PropositionalEquality 
 open import Relation.Nullary
@@ -559,7 +559,8 @@ mutual
 
   case2 :  (d : nothing ⊢ NatRaw ∷ [] ⇒ NatRaw)
     → {pf : hyp-free d ≡ false}
-    →  Σ[ k ∈ ℕ ] (∀ b → Nat2ℕ (⟦ d ⟧ nothing tt ((ℕ2Nat b) , tt))  ≡ Nat2ℕ (⟦ d ⟧ nothing tt (z , tt)) + k * b)
+    →  Σ[ k ∈ ℕ ] (∀ b → Nat2ℕ (⟦ d ⟧ nothing tt ((ℕ2Nat b) , tt))  
+           ≡ Nat2ℕ (⟦ d ⟧ nothing tt (z , tt)) + k * b)
   case2 id-axiom = 1 ,  λ b → trans (hb b) (+-comm zero _)
   case2 (μ-r d) {pf} = case2' d {pf}
   case2 (μ-l d x x₁) {pf} = caseFold d {pf}

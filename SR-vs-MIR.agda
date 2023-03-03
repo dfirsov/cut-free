@@ -9,9 +9,9 @@ open import Function
 open import Data.Nat
 open import Data.Fin hiding (_+_)
 open import Data.List
-open import Data.List.Any.Membership.Propositional using (_∈_)
+open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Any  hiding (map)
-open import Data.Vec hiding (map; _++_; _∈_)
+open import Data.Vec hiding (_++_)
 open import Data.Unit hiding (_≟_)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
@@ -102,5 +102,4 @@ module MultIndRecSepExample where
 
   charf-ce : ⟦ ce ⟧ nothing tt (s1 (inj₁ tt) , tt) ≡ ⟦ ce ⟧ nothing tt (s1 (inj₂ tt) , tt) → ⊥
   charf-ce ()
-
 

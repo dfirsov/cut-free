@@ -1,10 +1,8 @@
 {-#  OPTIONS --type-in-type #-}
 
-
 module MIR where
 
 open import Data.Empty
-
 
 open import Data.Product
 open import Data.Sum
@@ -12,9 +10,9 @@ open import Function
 open import Data.Nat
 open import Data.Fin hiding (_+_)
 open import Data.List
-open import Data.List.Any.Membership.Propositional using (_∈_)
+open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Any  hiding (map)
-open import Data.Vec hiding (map; _++_; _∈_)
+open import Data.Vec hiding (_++_)
 open import Data.Unit hiding (_≟_)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
@@ -46,40 +44,21 @@ closedH-2 {y} {x} g () | false
 closedH-2 {y} {x} g p  | true  = refl
 
 
-
 infix 3 _⊢_
 
 data _⊢_ :  HContext  → Seq → Set where
   id-axiom : ∀ {Φ : HContext}{Γ : Context}{A : Formula}
         → Φ ⊢ A ∷ Γ ⇒ A
-
-  {- additive -}
+       
   unit-r : ∀ {Φ : HContext}{Γ : Context} → Φ ⊢ Γ ⇒ unit
-  {- additie unit has no left rule  -}
+  unit-l : ∀ {Φ : HContext}{Γ : Context}{C : Formula}
+    → Φ ⊢ Γ ⇒ C → Φ ⊢ unit ∷ Γ ⇒ C
 
-  {- multiplicative -}
-  Top-l : ∀ {Φ : HContext}{Γ : Context}{C : Formula}
-    → Φ ⊢ Γ ⇒ C → Φ ⊢ Top ∷ Γ ⇒ C
-  Top-r : ∀ {Φ : HContext}{C : Formula}
-    → Φ ⊢ [] ⇒ Top
-
-  {- additive -}
   ∧-r  : ∀ {Φ : HContext}{Γ : Context}{A B : Formula}
-             → Φ ⊢  Γ ⇒ A → Φ ⊢ Γ ⇒ B → Φ ⊢ Γ ⇒ A ∧ B 
-  ∧-l₁  : ∀ {Φ : HContext}{Γ : Context}{A B C : Formula}
-             → Φ ⊢  A ∷ Γ ⇒ C → Φ ⊢ A ∧ B ∷ Γ ⇒ C
-
-  ∧-l₂  : ∀ {Φ : HContext}{Γ : Context}{A B C : Formula}
-             → Φ ⊢  B ∷ Γ ⇒ C → Φ ⊢ A ∧ B ∷ Γ ⇒ C
-
-  {- multiplicative -}
-  ⊗-l  : ∀ {Φ : HContext}{Γ : Context}{A B C : Formula}
+             → Φ ⊢  Γ ⇒ A → Φ ⊢ Γ ⇒ B → Φ ⊢ Γ ⇒ A ∧ B     
+  ∧-l  : ∀ {Φ : HContext}{Γ : Context}{A B C : Formula}
              → Φ ⊢  A ∷ B ∷ Γ ⇒ C → Φ ⊢ A ∧ B ∷ Γ ⇒ C
-  ⊗-r  : ∀ {Φ : HContext}{Γ Δ : Context}{A B : Formula}
-             → Φ ⊢  Γ ⇒ A → Φ ⊢ Δ ⇒ B → Φ ⊢ Γ ++ Δ ⇒ A ∧ B 
-
-
-  {- additive -}
+  
   ∨-r₁  : ∀ {Φ : HContext}{Γ : Context}{A B : Formula}
              → Φ ⊢ Γ ⇒ A → Φ ⊢ Γ ⇒ A ∨ B
   ∨-r₂  : ∀ {Φ : HContext}{Γ : Context}{A B : Formula}
@@ -111,9 +90,6 @@ data _⊢_ :  HContext  → Seq → Set where
             → Φ ⊢ Γ ⇒ C
 
 
-
-
-
 ⟦_⟧H :  HContext → Maybe Set → Set
 ⟦ nothing ⟧H ρs = ⊤
 ⟦ just S ⟧H ρs  = ⟦ S ⟧S ρs 
@@ -123,13 +99,9 @@ data _⊢_ :  HContext  → Seq → Set where
  → ⟦ Φ ⟧H ρ → ⟦ Γ ⟧C ρ → ⟦ A ⟧F ρ
 ⟦ id-axiom ⟧ ρ v (x , _) = x
 ⟦ unit-r ⟧ ρ v _ =  tt
-⟦ Top-l c ⟧ ρ v = λ { (a , b) → ⟦ c ⟧ ρ v b  }
-⟦ Top-r ⟧ ρ v = id
+⟦ unit-l c ⟧ ρ v = λ { (a , b) → ⟦ c ⟧ ρ v b  }
 ⟦ ∧-r A B ⟧ ρ v = λ φ → ⟦ A ⟧ ρ v φ ,  ⟦ B ⟧ ρ v φ
-⟦ ∧-l₁ d  ⟧ ρ v = λ φ → ⟦ d ⟧ ρ v (proj₁ (proj₁ φ) , proj₂ φ)
-⟦ ∧-l₂ d  ⟧ ρ v = λ φ → ⟦ d ⟧ ρ v (proj₂ (proj₁ φ) , proj₂ φ)
-⟦ ⊗-r d1 d2 ⟧ ρ v  = λ φ → ⟦ d1 ⟧ ρ v {!!} , {!!} -- ⟦ A ⟧ ρ v (a , b , c )
-⟦ ⊗-l A ⟧ ρ v ((a , b) , c) = ⟦ A ⟧ ρ v (a , b , c )
+⟦ ∧-l A ⟧ ρ v ((a , b) , c) = ⟦ A ⟧ ρ v (a , b , c )
 ⟦ ∨-r₁ {A = A} c ⟧ ρ v g = inj₁ (⟦ c ⟧ ρ v g)
 ⟦ ∨-r₂ {B = B} c ⟧ ρ v g = inj₂ (⟦ c ⟧ ρ v g)
 ⟦ ∨-l {A = A} {B} {_} a b ⟧ ρ v (x , g) = [_,_] (λ x → ⟦ a ⟧ ρ v (x , g)) ((λ x → ⟦ b ⟧ ρ v (x , g)))  x

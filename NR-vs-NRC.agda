@@ -10,9 +10,9 @@ open import Function
 open import Data.Nat
 open import Data.Fin hiding (_+_)
 open import Data.List
-open import Data.List.Any.Membership.Propositional using (_∈_)
+open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Any  hiding (map)
-open import Data.Vec hiding (map; _++_; _∈_)
+open import Data.Vec 
 open import Data.Unit hiding (_≟_)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
@@ -44,6 +44,8 @@ module NoRecNat2NatChar where
   idax-free (exchng x d) = idax-free d
   idax-free (id-axiom {A = μ (unit ∨ var)} ) = false
   idax-free id-axiom = true
+
+
 
 
   charf-[]-A : {A : Formula} → (d : tt ⊢ [] ⇒ A) → idax-free d ≡ true
@@ -278,7 +280,8 @@ module NoRecNat2NatChar where
     charf7 (exchng herex d) {pf} b = charf7 d {pf} b
     charf7 (exchng (therex ()) d) b
 
-    norec-case1 :  (d : tt ⊢ NatRaw ∷ [] ⇒ NatRaw) → {pf : idax-free d ≡ true} → (b : Nat) →  ⟦ d ⟧ nothing  (s b , tt) ≡ ⟦ d ⟧ nothing  (s (s b) , tt)
+    norec-case1 :  (d : tt ⊢ NatRaw ∷ [] ⇒ NatRaw) → {pf : idax-free d ≡ true} → (b : Nat) 
+              →  ⟦ d ⟧ nothing  (s b , tt) ≡ ⟦ d ⟧ nothing  (s (s b) , tt)
     norec-case1 id-axiom {()} b
     norec-case1 (μ-r (∨-r₁ d)) b =  refl
     norec-case1 (μ-r (∨-r₂ d)) {pf} b rewrite norec-case1 d {pf}  b = refl
