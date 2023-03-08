@@ -7,10 +7,16 @@ open import Data.List hiding (lookup)
 open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Any  hiding (map; lookup)
 open import Data.Vec hiding (map; _++_;  insert)
-open import Data.Unit hiding (_≟_)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
+open import Data.Unit hiding (_≟_)
+open import Data.Product hiding (map)
+open import Data.Empty
+open import Data.Sum hiding (map)
+open import Function
+
+infix 25 _⊗_
 infix 25 _∧_
 infix 25 _∨_
 infix 4 _⇒_
@@ -19,8 +25,9 @@ infix 3 _,_⊢_
 data Formula : ℕ → Set where
   one : ∀ {n} → Formula n
   _⊗_ : ∀ {n} → Formula n → Formula n → Formula n
-  unit : ∀ {n} → Formula n  
+  top : ∀ {n} → Formula n  
   _∧_  : ∀ {n} → Formula n → Formula n → Formula n
+  zero : ∀ {n} → Formula n  
   _⊕_  : ∀ {n} → Formula n → Formula n → Formula n
   var  : ∀ {n} → Fin n → Formula n
   μ    : ∀ {n} → Formula (suc n) → Formula n
@@ -32,8 +39,9 @@ Context n = List (Formula n)
 weakenFA : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n)
 weakenFA p one = one
 weakenFA p (A ⊗ B) = weakenFA p A ∧ weakenFA p B
-weakenFA p unit = unit
+weakenFA p top = top
 weakenFA p (A ∧ B) = weakenFA p A ∧ weakenFA p B
+weakenFA p zero = zero
 weakenFA p (A ⊕ B) = weakenFA p A ⊕ weakenFA p B  
 weakenFA p (var x) = var (punchIn p x) -- punchIn p x = if x≥p then x+1 else x
 weakenFA p (μ f) = μ (weakenFA (suc p) f)
@@ -50,8 +58,9 @@ cmpr (suc a) (suc b) | no ¬p = no λ { refl → ¬p refl }
 substVar : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n) → Formula n
 substVar p  f one = one
 substVar p f (A ⊗ B) = substVar p  f A ⊗ substVar p f B
-substVar p  f unit = unit
+substVar p  f top = top
 substVar p f (A ∧ B) = substVar p  f A ∧ substVar p f B
+substVar p  f zero = zero
 substVar p f (A ⊕ B) = substVar p f A ⊕ substVar p f B
 substVar p f (μ A) = μ (substVar (suc p)  (weakenFA zero f) A)
 -- The function f(i,j) = if j>i then j-1 else j
@@ -103,16 +112,19 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
 
   -- additives
 
-  unit-r : ∀ {n : ℕ}{Φ : HContext n}{Γ : Context n} → n , Φ ⊢ Γ ⇒ one
+  top-r : ∀ {n : ℕ}{Φ : HContext n}{Γ : Context n} → n , Φ ⊢ Γ ⇒ one
 
   ∧-r  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B : Formula n}
              → n , Φ ⊢  Γ ⇒ A → n , Φ ⊢  Γ ⇒ B → n , Φ ⊢  Γ ⇒ A ∧ B
 
   ∧-l₁  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
-             →   n , Φ ⊢  A ∷ Γ ⇒ C → n , Φ ⊢  A ∧ B ∷ Γ ⇒ C
+             →  n , Φ ⊢  A ∷ Γ ⇒ C → n , Φ ⊢  A ∧ B ∷ Γ ⇒ C
   ∧-l₂  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
-             →   n , Φ ⊢  B ∷ Γ ⇒ C → n , Φ ⊢  A ∧ B ∷ Γ ⇒ C
-  
+             →  n , Φ ⊢  B ∷ Γ ⇒ C → n , Φ ⊢  A ∧ B ∷ Γ ⇒ C
+
+  zero-l  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {C : Formula n}
+            → n , Φ ⊢   zero ∷ Γ ⇒ C 
+
   ⊕-r₁  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B : Formula n}
              → n , Φ ⊢  Γ ⇒ A → n , Φ ⊢  Γ ⇒ A ⊕ B
 
@@ -129,7 +141,7 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
              → n , Φ ⊢  Γ ⇒ μ A
 
   μ-l  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}{C : Formula n}
-            → (suc n) ,
+            → suc n ,
                (var zero ∷ weakenContext Γ ⇒ weakenFA zero C) ∷ weakenHContext Φ
                      ⊢ A ∷ weakenContext Γ ⇒ weakenFA zero C 
             → n , Φ ⊢ μ A ∷  Γ ⇒ C
@@ -137,7 +149,6 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
   hyp-use : ∀ {n : ℕ}{Φ : HContext n}{S : Seq n}
      → S ∈ Φ → n , Φ  ⊢ S
 
-{-
   contr  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
             → n , Φ ⊢ A ∷ A ∷ Γ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C
@@ -146,17 +157,13 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
   weakn  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
             → n , Φ ⊢ Γ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C
--}
 
   exchng  : ∀ {n : ℕ}{Φ : HContext n} {Γ Γ₁ Γ₂ : Context n} {A : Formula n}{C : Formula n}
-            → Γ ≡  Γ₁ ++ Γ₂
-            → n , Φ ⊢ A ∷ Γ ⇒ C            
+            → Γ ≡  Γ₁ ++ Γ₂         
             → n , Φ ⊢ Γ₁ ++ A ∷ Γ₂ ⇒ C
+            → n , Φ ⊢ A ∷ Γ ⇒ C  
 
 
-open import Data.Product
-open import Data.Sum
-open import Function
 
 data Mu (F : Set → Set) :  Set where
   IN : ∀ {X : Set} → (X → Mu F) → F X → Mu F
@@ -172,12 +179,13 @@ Fold {F} alg (IN {X} f v) = alg X (Fold alg ∘ f) v
 
 
 ⟦_⟧F  : {n : ℕ} → Formula n → Vec Set n → Set
-⟦ unit ⟧F ρ = ⊤
+⟦ top ⟧F ρ = ⊤
 ⟦ A ⊗ B ⟧F ρ = ⟦ A ⟧F ρ  × ⟦ B ⟧F ρ
 ⟦ one ⟧F ρ = ⊤
 ⟦ A ∧ B ⟧F ρ = ⟦ A ⟧F ρ  × ⟦ B ⟧F ρ
+⟦ zero ⟧F ρ = ⊥
 ⟦ A ⊕ B ⟧F ρ = ⟦ A ⟧F ρ  ⊎ ⟦ B ⟧F ρ
-⟦ var x ⟧F ρ = {!!} --lookup x ρ
+⟦ var i ⟧F ρ = lookup ρ i
 ⟦ μ A ⟧F ρ = Mu λ (X : Set) → ⟦ A ⟧F (X ∷ ρ)  
 
 
@@ -192,35 +200,28 @@ Fold {F} alg (IN {X} f v) = alg X (Fold alg ∘ f) v
 ⟦ [] ⟧H ρ = ⊤
 ⟦ S ∷ Φ ⟧H ρ = ⟦ S ⟧s ρ × ⟦ Φ ⟧H ρ
 
-
 insert : {X : Set} {n : ℕ} → X → Fin (suc n) → Vec X n → Vec X (suc n)
 insert x zero v = x ∷ v
 insert x (suc ()) []
 insert x (suc p) (x₁ ∷ v) = x₁ ∷ insert x p v
 
-substEq' : {n : ℕ} → (i : Fin (suc n))  →  (A : Formula (suc n)) → {B : Formula n} → {ρ : Vec Set n} → ⟦ substVar i B A  ⟧F ρ → ⟦ A ⟧F (insert (⟦ B ⟧F ρ) i ρ )
-substEq' i one v = v
-substEq' i (A ∧ B) (a , b) = {!!} , {!!}
-substEq' i (A ⊕ B) (inj₁ a) = {!!}
-substEq' i (A ⊕ B) (inj₂ b) = {!!}
-substEq' zero (var zero) {ρ = ρ} v = v
-substEq' zero (var (suc x)) {ρ = ρ} v = v
-substEq' (suc i) (var zero) v = {!!}
-substEq' (suc i) (var (suc x)) v = {!!}
-substEq' zero (μ A) {ρ = ρ} v = Fold (λ Y f fv → IN f {!substEq' (suc zero) A fv!}) v 
-substEq' (suc b) (μ A) {ρ = ρ} (IN x x₁) = In {!substEq' (suc (suc b)) A x₁!}
 
 substEq : {n : ℕ} → {i : Fin (suc n)} (A : Formula (suc n)) → {B : Formula n} → {ρ : Vec Set n} → ⟦ substVar i B A  ⟧F ρ ≡ ⟦ A ⟧F (insert (⟦ B ⟧F ρ) i ρ )
 substEq one = refl
-substEq {n} (A ∧ A₁) {B} {ρ} rewrite (substEq {n} A {B} {ρ}) | (substEq {n} A₁ {B} {ρ}) = {!!}
-substEq {n} (A ⊕ A₁) {B} {ρ} rewrite (substEq {n} A {B} {ρ}) | (substEq {n} A₁ {B} {ρ}) = {!!}
-substEq (var zero) = {!!}
-substEq (var (suc x)) = {!!}
-substEq (μ A) = {!substEq  A!}
+substEq {n} {i} (A ∧ A₁) {B} {ρ} rewrite (substEq {n} {i} A {B} {ρ}) | (substEq {n} {i} A₁ {B} {ρ}) = refl
+substEq {n} {i} (A ⊕ A₁) {B} {ρ} rewrite (substEq {n} {i} A {B} {ρ}) | (substEq {n} {i} A₁ {B} {ρ}) = refl
+substEq  {n} {p} (var x) with cmpr p x
+substEq {n} {.x} (var x) | yes refl = {!!} -- doable
+substEq {n} {p} (var x) | no ¬p = {!!} -- doable
+substEq {0F} {0F} (μ A) {ρ = []} = {!!}
+substEq {suc n} (μ A) = {!!}
+substEq _ = {!!}
+
+substEq' : {n : ℕ} → (i : Fin (suc n))  →  (A : Formula (suc n)) → {B : Formula n} → {ρ : Vec Set n} → ⟦ substVar i B A  ⟧F ρ → ⟦ A ⟧F (insert (⟦ B ⟧F ρ) i ρ )
+substEq' i A q = subst id (substEq A) q 
 
 
-{-
-inser-punch : {X : Set} {n : ℕ} → (x : X) → (j : Fin n) → (i : Fin (suc n)) → (ρ : Vec X n) →  lookup j ρ ≡ lookup (punchIn i j) (insert x i ρ)
+inser-punch : {X : Set} {n : ℕ} → (x : X) → (j : Fin n) → (i : Fin (suc n)) → (ρ : Vec X n) →  lookup ρ j ≡ lookup  (insert x i ρ) (punchIn i j)
 inser-punch x j zero ρ = refl
 inser-punch x zero (suc i) (x₁ ∷ ρ) = refl
 inser-punch x (suc j) (suc i) (x₁ ∷ ρ) = inser-punch x j i ρ
@@ -279,30 +280,39 @@ H→weakH (S ∷ Φ) (f , fs) = S→weakS S f , H→weakH Φ fs
 
 
 
+splitc : {n : ℕ}{Γ Δ : Context n}{ρ : Vec Set n} → ⟦ Γ ++ Δ ⟧c ρ → ⟦ Γ ⟧c ρ × ⟦ Δ ⟧c ρ 
+splitc {_} {[]} {Δ} xs =  tt , xs
+splitc {_} {A ∷ Γ} {Δ} (x , xs) with splitc {_} {Γ} xs
+... | ys , zs =  (x , ys)  , zs 
+
 ⟦_⟧ : {n : ℕ}{Φ : HContext n}{S : Seq n} → n , Φ ⊢ S → (ρ : Vec Set n) → ⟦ Φ ⟧H ρ → ⟦ S ⟧s ρ
-⟦ id-axiom ⟧ ρ φ =  λ { (a , _) → a }
-⟦ one-r ⟧ ρ φ = λ _ → tt
-⟦ one-l f ⟧ ρ φ = λ { (_ , xs) → ⟦ f  ⟧ ρ φ xs }
-⟦ ∧-r f g ⟧ ρ φ = λ xs → ⟦ f ⟧ ρ φ xs , ⟦ g ⟧ ρ φ xs 
-⟦ ∧-l f ⟧ ρ φ = λ { ((x , y) , xs) → ⟦ f ⟧ ρ φ (x , (y , xs)) }
-⟦ ⊕-r₁ f ⟧ ρ φ = λ xs → inj₁ (⟦ f ⟧ ρ φ xs)
-⟦ ⊕-r₂ f ⟧ ρ φ = λ xs → inj₂ (⟦ f ⟧ ρ φ xs)
-⟦ ⊕-l f g ⟧ ρ φ = λ { (inj₁ x , xs) → ⟦ f ⟧ ρ φ (x , xs) ; (inj₂ y , xs) →  ⟦ g ⟧ ρ φ (y , xs) }
-⟦ μ-r  {n = n}  {A = A} f ⟧ ρ φ = λ xs → In {!(⟦ f ⟧ ρ φ xs)!}
-
---λ xs → In {!(weakF→F {n} zero  (⟦ f ⟧ ρ φ xs))!}
-
--- (subst id (sym (substEq A)) ((⟦ f ⟧ ρ φ xs)))
+⟦ id-axiom ⟧ ρ φ (x , tt) = x
+⟦ one-r ⟧ ρ φ tt =  tt
+⟦ one-l f ⟧ ρ φ (tt , xs) =  ⟦ f  ⟧ ρ φ xs 
+⟦ ⊗-r f g ⟧ ρ φ xs with splitc xs
+... | ys , zs = ⟦ f ⟧ ρ φ ys , ⟦ g ⟧ ρ φ zs
+⟦ ⊗-l f ⟧ ρ φ ((x , y) , xs) = ⟦ f ⟧ ρ φ (x , y , xs) 
+⟦ top-r ⟧ ρ φ  _ = tt
+⟦ ∧-r f g ⟧ ρ φ xs =  ⟦ f ⟧ ρ φ xs , ⟦ g ⟧ ρ φ xs 
+⟦ ∧-l₁ f ⟧ ρ φ ((x , y) , xs) = ⟦ f ⟧ ρ φ (x , xs) 
+⟦ ∧-l₂ f ⟧ ρ φ ((x , y) , xs) = ⟦ f ⟧ ρ φ (y , xs)
+⟦ zero-l ⟧ ρ φ (() , xs)
+⟦ ⊕-r₁ f ⟧ ρ φ xs = inj₁ (⟦ f ⟧ ρ φ xs)
+⟦ ⊕-r₂ f ⟧ ρ φ xs = inj₂ (⟦ f ⟧ ρ φ xs)
+⟦ ⊕-l f g ⟧ ρ φ (inj₁ x , xs) = ⟦ f ⟧ ρ φ (x , xs)
+⟦ ⊕-l f g ⟧ ρ φ (inj₂ y , xs) = ⟦ g ⟧ ρ φ (y , xs)
+⟦ μ-r  {n = n}  {A = A} f ⟧ ρ φ xs = In (substEq' 0F A (⟦ f ⟧ ρ φ xs)  )
 
 ⟦ μ-l  {Φ = Φ} {Γ = Γ} {C = C} f ⟧ ρ φ = uncurry (Fold λ X recf q1 q2 → ((weakF→F zero {X = X} C {ρ})) (⟦ f  ⟧ (X ∷ ρ) ((λ { (x , b) →  (F→weakF zero C) (recf x (weakC→C Γ  b))  }) ,  ( (H→weakH Φ)) φ) (q1 ,  ((C→weakC Γ)) q2) ))
 ⟦ hyp-use (here refl) ⟧ ρ (f , _) = f
 ⟦ hyp-use (there x) ⟧ ρ (_ , φ') = ⟦ hyp-use x ⟧ ρ φ'
-⟦ contr f ⟧ ρ φ = λ { (x , xs) → ⟦ f ⟧ ρ φ (x , (x , xs)) }
-⟦ weakn f ⟧ ρ φ = λ { (x , xs) → ⟦ f ⟧ ρ φ xs }
+⟦ contr f ⟧ ρ φ (x , xs) = ⟦ f ⟧ ρ φ (x , x , xs) 
+⟦ weakn f ⟧ ρ φ (x , xs) = ⟦ f ⟧ ρ φ xs 
 ⟦ exchng refl x₁ ⟧ ρ φ = {!!}
 
 
 
+{-
 
 NatRaw : Formula 0
 NatRaw =  μ (one ⊕ var zero)   
