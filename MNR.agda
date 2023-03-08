@@ -5,7 +5,7 @@ open import Data.Nat
 open import Data.Fin
 open import Data.List hiding (lookup)
 open import Data.List.Membership.Propositional using (_∈_)
-open import Data.List.Any  hiding (map; lookup)
+open import Data.List.Any hiding (map; lookup)
 open import Data.Vec hiding (map; _++_;  insert)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
@@ -35,16 +35,22 @@ data Formula : ℕ → Set where
 Context : ℕ → Set
 Context n = List (Formula n)
 
+data Seq (n : ℕ) : Set where
+  _⇒_ : Context n → Formula n → Seq n
+
+HContext : ℕ → Set
+HContext n = List (Seq n)
+
 
 weakenFA : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n)
-weakenFA p one = one
-weakenFA p (A ⊗ B) = weakenFA p A ∧ weakenFA p B
-weakenFA p top = top
-weakenFA p (A ∧ B) = weakenFA p A ∧ weakenFA p B
-weakenFA p zero = zero
-weakenFA p (A ⊕ B) = weakenFA p A ⊕ weakenFA p B  
-weakenFA p (var x) = var (punchIn p x) -- punchIn p x = if x≥p then x+1 else x
-weakenFA p (μ f) = μ (weakenFA (suc p) f)
+weakenFA i one = one
+weakenFA i (A ⊗ B) = weakenFA i A ⊗ weakenFA i B
+weakenFA i top = top
+weakenFA i (A ∧ B) = weakenFA i A ∧ weakenFA i B
+weakenFA i zero = zero
+weakenFA i (A ⊕ B) = weakenFA i A ⊕ weakenFA i B  
+weakenFA i (var j) = var (punchIn i j) -- punchIn p x = if x≥p then x+1 else x
+weakenFA i (μ f) = μ (weakenFA (suc i) f)
 
 
 cmpr : {n : ℕ} → (a b : Fin n) → Dec (a ≡ b)
@@ -56,11 +62,11 @@ cmpr (suc a) (suc .a) | yes refl = yes refl
 cmpr (suc a) (suc b) | no ¬p = no λ { refl → ¬p refl } 
 
 substVar : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n) → Formula n
-substVar p  f one = one
+substVar p f one = one
 substVar p f (A ⊗ B) = substVar p  f A ⊗ substVar p f B
-substVar p  f top = top
+substVar p f top = top
 substVar p f (A ∧ B) = substVar p  f A ∧ substVar p f B
-substVar p  f zero = zero
+substVar p f zero = zero
 substVar p f (A ⊕ B) = substVar p f A ⊕ substVar p f B
 substVar p f (μ A) = μ (substVar (suc p)  (weakenFA zero f) A)
 -- The function f(i,j) = if j>i then j-1 else j
@@ -68,21 +74,8 @@ substVar p f (var x) with cmpr p x
 substVar p f (var x) | no ¬p = var (punchOut ¬p)
 substVar p f (var x) | yes p₁ = f
 
-{-
-substVar : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n) → Formula n
-substVar p f one = one
-substVar p f (A ∧ B) = substVar p f A ∧ substVar p f B
-substVar p f (A ⊕ B) = substVar p f A ⊕ substVar p f B
-substVar p f (var zero) = f
-substVar p f (var (suc x)) = var x 
-substVar p f (μ A) = μ (substVar (suc p) (weakenFA zero f) A)
--}
 
-data Seq (n : ℕ) : Set where
-  _⇒_ : Context n → Formula n → Seq n
 
-HContext : ℕ → Set
-HContext n = List (Seq n)
 
 weakenContext : {n : ℕ} → Context n  → Context (suc n)
 weakenContext Γ  = map (weakenFA zero) Γ
@@ -94,71 +87,71 @@ weakenHContext : {n : ℕ} → HContext n  → HContext (suc n)
 weakenHContext Φ = map weakenSeq Φ
 
 data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
-  id-axiom : ∀ {n : ℕ}{Φ : HContext n}{Γ : Context n}{A : Formula n}
+  id-axiom : {n : ℕ}{Φ : HContext n}{A : Formula n}
         → n , Φ ⊢ A ∷ [] ⇒ A
 
   -- multiplicatives
   
-  one-r : ∀ {n : ℕ}{Φ : HContext n} → n , Φ ⊢ [] ⇒ one
+  one-r : {n : ℕ}{Φ : HContext n} → n , Φ ⊢ [] ⇒ one
 
-  one-l : ∀ {n : ℕ}{Φ : HContext n}{Γ : Context n}{C : Formula n}
+  one-l : {n : ℕ}{Φ : HContext n}{Γ : Context n}{C : Formula n}
    → n , Φ ⊢ Γ ⇒ C  → n , Φ ⊢  one ∷ Γ ⇒ C
 
-  ⊗-r  : ∀ {n : ℕ}{Φ : HContext n} {Γ Δ : Context n} {A B : Formula n}
+  ⊗-r  : {n : ℕ}{Φ : HContext n} {Γ Δ : Context n} {A B : Formula n}
              → n , Φ ⊢  Γ ⇒ A → n , Φ ⊢ Δ ⇒ B → n , Φ ⊢  Γ ++ Δ ⇒ A ⊗ B
 
-  ⊗-l  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
+  ⊗-l  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
              →   n , Φ ⊢  A ∷ B ∷ Γ ⇒ C → n , Φ ⊢  A ∧ B ∷ Γ ⇒ C
 
   -- additives
 
-  top-r : ∀ {n : ℕ}{Φ : HContext n}{Γ : Context n} → n , Φ ⊢ Γ ⇒ one
+  top-r : {n : ℕ}{Φ : HContext n}{Γ : Context n} → n , Φ ⊢ Γ ⇒ one
 
-  ∧-r  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B : Formula n}
+  ∧-r : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B : Formula n}
              → n , Φ ⊢  Γ ⇒ A → n , Φ ⊢  Γ ⇒ B → n , Φ ⊢  Γ ⇒ A ∧ B
 
-  ∧-l₁  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
+  ∧-l₁ : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
              →  n , Φ ⊢  A ∷ Γ ⇒ C → n , Φ ⊢  A ∧ B ∷ Γ ⇒ C
-  ∧-l₂  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
+  ∧-l₂ : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
              →  n , Φ ⊢  B ∷ Γ ⇒ C → n , Φ ⊢  A ∧ B ∷ Γ ⇒ C
 
-  zero-l  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {C : Formula n}
-            → n , Φ ⊢   zero ∷ Γ ⇒ C 
+  zero-l : {n : ℕ}{Φ : HContext n} {Γ : Context n} {C : Formula n}
+            → n , Φ ⊢ zero ∷ Γ ⇒ C 
 
-  ⊕-r₁  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B : Formula n}
+  ⊕-r₁  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B : Formula n}
              → n , Φ ⊢  Γ ⇒ A → n , Φ ⊢  Γ ⇒ A ⊕ B
 
-  ⊕-r₂  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B : Formula n}
+  ⊕-r₂  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B : Formula n}
              → n , Φ ⊢  Γ ⇒ B → n , Φ ⊢  Γ ⇒ A ⊕ B
 
-  ⊕-l  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
+  ⊕-l  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A B C : Formula n}
              → n , Φ ⊢   A ∷ Γ ⇒ C 
              → n , Φ ⊢   B ∷ Γ ⇒ C 
              → n , Φ ⊢   A ⊕ B ∷ Γ ⇒ C   
 
-  μ-r  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}
+  μ-r  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}
              → n , Φ ⊢  Γ ⇒ substVar zero (μ A)  A
              → n , Φ ⊢  Γ ⇒ μ A
 
-  μ-l  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}{C : Formula n}
+  μ-l  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}{C : Formula n}
             → suc n ,
                (var zero ∷ weakenContext Γ ⇒ weakenFA zero C) ∷ weakenHContext Φ
                      ⊢ A ∷ weakenContext Γ ⇒ weakenFA zero C 
             → n , Φ ⊢ μ A ∷  Γ ⇒ C
 
-  hyp-use : ∀ {n : ℕ}{Φ : HContext n}{S : Seq n}
+  hyp-use : {n : ℕ}{Φ : HContext n}{S : Seq n}
      → S ∈ Φ → n , Φ  ⊢ S
 
-  contr  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
+  contr  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
             → n , Φ ⊢ A ∷ A ∷ Γ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C
 
 
-  weakn  : ∀ {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
+  weakn  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
             → n , Φ ⊢ Γ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C
 
-  exchng  : ∀ {n : ℕ}{Φ : HContext n} {Γ Γ₁ Γ₂ : Context n} {A : Formula n}{C : Formula n}
+  exchng  : {n : ℕ}{Φ : HContext n} {Γ Γ₁ Γ₂ : Context n} {A : Formula n}{C : Formula n}
             → Γ ≡  Γ₁ ++ Γ₂         
             → n , Φ ⊢ Γ₁ ++ A ∷ Γ₂ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C  
@@ -166,16 +159,16 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
 
 
 data Mu (F : Set → Set) :  Set where
-  IN : ∀ {X : Set} → (X → Mu F) → F X → Mu F
-
-
-
+  IN : {X : Set} → (X → Mu F) → F X → Mu F
 
 In : {F : Set → Set} → F (Mu F) → Mu F
-In m = IN id m
+In {F} m = IN {F} {Mu F} id m
 
 Fold : {F : Set → Set}{C : Set} → ((Y : Set) → (Y → C) → F Y → C) → Mu F  → C
 Fold {F} alg (IN {X} f v) = alg X (Fold alg ∘ f) v 
+
+MuF2G : {F G : Set → Set} → (∀ (Y : Set) → F Y → G Y) →  Mu F → Mu G
+MuF2G {F} {G} conv mf = Fold ( λ Y f v → IN {G} {Y} f (conv Y v)) mf
 
 
 ⟦_⟧F  : {n : ℕ} → Formula n → Vec Set n → Set
@@ -200,25 +193,31 @@ Fold {F} alg (IN {X} f v) = alg X (Fold alg ∘ f) v
 ⟦ [] ⟧H ρ = ⊤
 ⟦ S ∷ Φ ⟧H ρ = ⟦ S ⟧s ρ × ⟦ Φ ⟧H ρ
 
+
+to : {X Y : Set} → X ≡ Y → X → Y
+to refl x = x
+
 insert : {X : Set} {n : ℕ} → X → Fin (suc n) → Vec X n → Vec X (suc n)
-insert x zero v = x ∷ v
+insert x zero xs = x ∷ xs
 insert x (suc ()) []
-insert x (suc p) (x₁ ∷ v) = x₁ ∷ insert x p v
+insert x (suc p) (y ∷ xs) = y ∷ insert x p xs
 
 
-substEq : {n : ℕ} → {i : Fin (suc n)} (A : Formula (suc n)) → {B : Formula n} → {ρ : Vec Set n} → ⟦ substVar i B A  ⟧F ρ ≡ ⟦ A ⟧F (insert (⟦ B ⟧F ρ) i ρ )
-substEq one = refl
-substEq {n} {i} (A ∧ A₁) {B} {ρ} rewrite (substEq {n} {i} A {B} {ρ}) | (substEq {n} {i} A₁ {B} {ρ}) = refl
-substEq {n} {i} (A ⊕ A₁) {B} {ρ} rewrite (substEq {n} {i} A {B} {ρ}) | (substEq {n} {i} A₁ {B} {ρ}) = refl
-substEq  {n} {p} (var x) with cmpr p x
-substEq {n} {.x} (var x) | yes refl = {!!} -- doable
-substEq {n} {p} (var x) | no ¬p = {!!} -- doable
-substEq {0F} {0F} (μ A) {ρ = []} = {!!}
-substEq {suc n} (μ A) = {!!}
-substEq _ = {!!}
+substEq : {n : ℕ} → (i : Fin (suc n)) → (A : Formula (suc n)) → {B : Formula n} → {ρ : Vec Set n} → ⟦ substVar i B A  ⟧F ρ ≡ ⟦ A ⟧F (insert (⟦ B ⟧F ρ) i ρ )
+substEq i one = refl
+substEq i (A ⊗ A₁) = cong₂ _×_ (substEq i A) (substEq i A₁)
+substEq i top = refl
+substEq i (A ∧ A₁) = cong₂ _×_ (substEq i A) (substEq i A₁)
+substEq i zero = refl
+substEq i (A ⊕ A₁) {B} {ρ} rewrite (substEq i A {B} {ρ}) | (substEq i A₁ {B} {ρ}) = refl
+substEq i (var j) with cmpr i j
+substEq .j (var j) | yes refl = {!!} -- doable
+substEq i (var j) | no ¬p = {!!} -- doable
+substEq {0F} 0F (μ A) {ρ = []} = {!!}
+substEq {suc n} _ (μ A) = {!!}
 
 substEq' : {n : ℕ} → (i : Fin (suc n))  →  (A : Formula (suc n)) → {B : Formula n} → {ρ : Vec Set n} → ⟦ substVar i B A  ⟧F ρ → ⟦ A ⟧F (insert (⟦ B ⟧F ρ) i ρ )
-substEq' i A q = subst id (substEq A) q 
+substEq' i A q = subst id (substEq i A) q 
 
 
 inser-punch : {X : Set} {n : ℕ} → (x : X) → (j : Fin n) → (i : Fin (suc n)) → (ρ : Vec X n) →  lookup ρ j ≡ lookup  (insert x i ρ) (punchIn i j)
@@ -228,13 +227,12 @@ inser-punch x (suc j) (suc i) (x₁ ∷ ρ) = inser-punch x j i ρ
 
 
 
-MuF2G : {F G : Set → Set } → (∀ (Y : Set) → F Y → G Y) →  Mu F → Mu G
-MuF2G {F} {G} conv mf = Fold ( λ X f v → IN {G} f (conv  X v)) mf
+
 
 F→weakF : {n : ℕ}(i : Fin (suc n)){X : Set}(C : Formula n) → {ρ : Vec Set n}
   →  ⟦ C ⟧F ρ → ⟦ weakenFA i C ⟧F (insert X i ρ)
 F→weakF i one v = tt
-F→weakF i (A ∧ B) (a , b) = (F→weakF i A a) , (F→weakF i B b)
+F→weakF i (A ∧ B) (a , b) = F→weakF i A a , F→weakF i B b
 F→weakF i (A ⊕ B) (inj₁ a) = inj₁ (F→weakF i A a)
 F→weakF i (A ⊕ B) (inj₂ b) = inj₂ (F→weakF i B b)
 F→weakF i (var x) {ρ} v = subst id (inser-punch _ _ i ρ) v
@@ -281,8 +279,8 @@ H→weakH (S ∷ Φ) (f , fs) = S→weakS S f , H→weakH Φ fs
 
 
 splitc : {n : ℕ}{Γ Δ : Context n}{ρ : Vec Set n} → ⟦ Γ ++ Δ ⟧c ρ → ⟦ Γ ⟧c ρ × ⟦ Δ ⟧c ρ 
-splitc {_} {[]} {Δ} xs =  tt , xs
-splitc {_} {A ∷ Γ} {Δ} (x , xs) with splitc {_} {Γ} xs
+splitc {_} {[]} xs =  tt , xs
+splitc {_} {A ∷ Γ} (x , xs) with splitc {_} {Γ} xs
 ... | ys , zs =  (x , ys)  , zs 
 
 ⟦_⟧ : {n : ℕ}{Φ : HContext n}{S : Seq n} → n , Φ ⊢ S → (ρ : Vec Set n) → ⟦ Φ ⟧H ρ → ⟦ S ⟧s ρ
@@ -301,9 +299,9 @@ splitc {_} {A ∷ Γ} {Δ} (x , xs) with splitc {_} {Γ} xs
 ⟦ ⊕-r₂ f ⟧ ρ φ xs = inj₂ (⟦ f ⟧ ρ φ xs)
 ⟦ ⊕-l f g ⟧ ρ φ (inj₁ x , xs) = ⟦ f ⟧ ρ φ (x , xs)
 ⟦ ⊕-l f g ⟧ ρ φ (inj₂ y , xs) = ⟦ g ⟧ ρ φ (y , xs)
-⟦ μ-r  {n = n}  {A = A} f ⟧ ρ φ xs = In (substEq' 0F A (⟦ f ⟧ ρ φ xs)  )
+⟦ μ-r {A = A} f ⟧ ρ φ xs = In (substEq' 0F A (⟦ f ⟧ ρ φ xs)  )
 
-⟦ μ-l  {Φ = Φ} {Γ = Γ} {C = C} f ⟧ ρ φ = uncurry (Fold λ X recf q1 q2 → ((weakF→F zero {X = X} C {ρ})) (⟦ f  ⟧ (X ∷ ρ) ((λ { (x , b) →  (F→weakF zero C) (recf x (weakC→C Γ  b))  }) ,  ( (H→weakH Φ)) φ) (q1 ,  ((C→weakC Γ)) q2) ))
+⟦ μ-l {Φ = Φ} {Γ = Γ} {C = C} f ⟧ ρ φ = uncurry (Fold λ X recf q1 q2 → ((weakF→F zero {X = X} C {ρ})) (⟦ f  ⟧ (X ∷ ρ) ((λ { (x , b) →  (F→weakF zero C) (recf x (weakC→C Γ  b))  }) , H→weakH Φ φ) (q1 , C→weakC Γ q2) ))
 ⟦ hyp-use (here refl) ⟧ ρ (f , _) = f
 ⟦ hyp-use (there x) ⟧ ρ (_ , φ') = ⟦ hyp-use x ⟧ ρ φ'
 ⟦ contr f ⟧ ρ φ (x , xs) = ⟦ f ⟧ ρ φ (x , x , xs) 
