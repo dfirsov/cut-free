@@ -1,12 +1,13 @@
 {-#  OPTIONS --type-in-type #-}
 
 
-open import Data.Nat
+open import Data.Nat hiding (_≟_)
 open import Data.Fin
 open import Data.List hiding (lookup)
 open import Data.List.Membership.Propositional using (_∈_)
 open import Data.List.Any hiding (map; lookup)
-open import Data.Vec hiding (map; _++_;  insert)
+open import Data.Vec hiding (map; _++_)
+open import Data.Vec.Properties
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
@@ -18,7 +19,7 @@ open import Function
 
 infix 25 _⊗_
 infix 25 _∧_
-infix 25 _∨_
+infix 25 _⊕_
 infix 4 _⇒_
 infix 3 _,_⊢_
 
@@ -42,46 +43,37 @@ HContext : ℕ → Set
 HContext n = List (Seq n)
 
 
-weakenFA : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n)
-weakenFA i one = one
-weakenFA i (A ⊗ B) = weakenFA i A ⊗ weakenFA i B
-weakenFA i top = top
-weakenFA i (A ∧ B) = weakenFA i A ∧ weakenFA i B
-weakenFA i zero = zero
-weakenFA i (A ⊕ B) = weakenFA i A ⊕ weakenFA i B  
-weakenFA i (var j) = var (punchIn i j) -- punchIn p x = if x≥p then x+1 else x
-weakenFA i (μ f) = μ (weakenFA (suc i) f)
+weakenF : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n)
+weakenF i one = one
+weakenF i (A ⊗ B) = weakenF i A ⊗ weakenF i B
+weakenF i top = top
+weakenF i (A ∧ B) = weakenF i A ∧ weakenF i B
+weakenF i zero = zero
+weakenF i (A ⊕ B) = weakenF i A ⊕ weakenF i B  
+weakenF i (var j) = var (punchIn i j) -- punchIn p x = if x≥p then x+1 else x
+weakenF i (μ F) = μ (weakenF (suc i) F)
 
-
-cmpr : {n : ℕ} → (a b : Fin n) → Dec (a ≡ b)
-cmpr zero zero = yes refl
-cmpr zero (suc b) = no λ { () }
-cmpr (suc a) zero = no λ { () }
-cmpr (suc a) (suc b)  with cmpr a b
-cmpr (suc a) (suc .a) | yes refl = yes refl
-cmpr (suc a) (suc b) | no ¬p = no λ { refl → ¬p refl } 
-
-substVar : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n) → Formula n
-substVar p f one = one
-substVar p f (A ⊗ B) = substVar p  f A ⊗ substVar p f B
-substVar p f top = top
-substVar p f (A ∧ B) = substVar p  f A ∧ substVar p f B
-substVar p f zero = zero
-substVar p f (A ⊕ B) = substVar p f A ⊕ substVar p f B
-substVar p f (μ A) = μ (substVar (suc p)  (weakenFA zero f) A)
+substF : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n) → Formula n
+substF i C one = one
+substF i C (A ⊗ B) = substF i C A ⊗ substF i C B
+substF i C top = top
+substF i C (A ∧ B) = substF i C A ∧ substF i C B
+substF i C zero = zero
+substF i C (A ⊕ B) = substF i C A ⊕ substF i C B
+substF i C (μ A) = μ (substF (suc i)  (weakenF zero C) A)
 -- The function f(i,j) = if j>i then j-1 else j
-substVar p f (var x) with cmpr p x
-substVar p f (var x) | no ¬p = var (punchOut ¬p)
-substVar p f (var x) | yes p₁ = f
+substF i C (var j) with i ≟ j
+substF i C (var j) | no ¬p = var (punchOut ¬p)
+substF i C (var j) | yes refl = C
 
 
 
 
 weakenContext : {n : ℕ} → Context n  → Context (suc n)
-weakenContext Γ  = map (weakenFA zero) Γ
+weakenContext Γ  = map (weakenF zero) Γ
 
 weakenSeq : {n : ℕ} → Seq n  → Seq (suc n)
-weakenSeq (Γ ⇒ A) = weakenContext Γ ⇒ weakenFA zero A
+weakenSeq (Γ ⇒ A) = weakenContext Γ ⇒ weakenF zero A
 
 weakenHContext : {n : ℕ} → HContext n  → HContext (suc n)
 weakenHContext Φ = map weakenSeq Φ
@@ -130,28 +122,28 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
              → n , Φ ⊢   A ⊕ B ∷ Γ ⇒ C   
 
   μ-r  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}
-             → n , Φ ⊢  Γ ⇒ substVar zero (μ A)  A
+             → n , Φ ⊢  Γ ⇒ substF zero (μ A)  A
              → n , Φ ⊢  Γ ⇒ μ A
 
   μ-l  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}{C : Formula n}
             → suc n ,
-               (var zero ∷ weakenContext Γ ⇒ weakenFA zero C) ∷ weakenHContext Φ
-                     ⊢ A ∷ weakenContext Γ ⇒ weakenFA zero C 
+               (var zero ∷ weakenContext Γ ⇒ weakenF zero C) ∷ weakenHContext Φ
+                     ⊢ A ∷ weakenContext Γ ⇒ weakenF zero C 
             → n , Φ ⊢ μ A ∷  Γ ⇒ C
 
   hyp-use : {n : ℕ}{Φ : HContext n}{S : Seq n}
      → S ∈ Φ → n , Φ  ⊢ S
 
-  contr  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
+  ctr  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
             → n , Φ ⊢ A ∷ A ∷ Γ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C
 
 
-  weakn  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
+  wk  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula n}{C : Formula n}
             → n , Φ ⊢ Γ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C
 
-  exchng  : {n : ℕ}{Φ : HContext n} {Γ Γ₁ Γ₂ : Context n} {A : Formula n}{C : Formula n}
+  exch  : {n : ℕ}{Φ : HContext n} {Γ Γ₁ Γ₂ : Context n} {A : Formula n}{C : Formula n}
             → Γ ≡  Γ₁ ++ Γ₂         
             → n , Φ ⊢ Γ₁ ++ A ∷ Γ₂ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C  
@@ -162,19 +154,21 @@ data Mu (F : Set → Set) :  Set where
   IN : {X : Set} → (X → Mu F) → F X → Mu F
 
 In : {F : Set → Set} → F (Mu F) → Mu F
-In {F} m = IN {F} {Mu F} id m
+In {F} m = IN {_} {Mu F} id m
 
 Fold : {F : Set → Set}{C : Set} → ((Y : Set) → (Y → C) → F Y → C) → Mu F  → C
-Fold {F} alg (IN {X} f v) = alg X (Fold alg ∘ f) v 
+Fold {F} alg (IN {X} f x) = alg X (Fold alg ∘ f) x 
 
-MuF2G : {F G : Set → Set} → (∀ (Y : Set) → F Y → G Y) →  Mu F → Mu G
-MuF2G {F} {G} conv mf = Fold ( λ Y f v → IN {G} {Y} f (conv Y v)) mf
+MuF2G : {F G : Set → Set} → ((Y : Set) → F Y → G Y) → Mu F → Mu G
+MuF2G {F} {G} f2g x = Fold {F}  ( λ Y f y → IN {G} {Y} f (f2g Y y)) x
+
+
 
 
 ⟦_⟧F  : {n : ℕ} → Formula n → Vec Set n → Set
-⟦ top ⟧F ρ = ⊤
-⟦ A ⊗ B ⟧F ρ = ⟦ A ⟧F ρ  × ⟦ B ⟧F ρ
 ⟦ one ⟧F ρ = ⊤
+⟦ A ⊗ B ⟧F ρ = ⟦ A ⟧F ρ  × ⟦ B ⟧F ρ
+⟦ top ⟧F ρ = ⊤
 ⟦ A ∧ B ⟧F ρ = ⟦ A ⟧F ρ  × ⟦ B ⟧F ρ
 ⟦ zero ⟧F ρ = ⊥
 ⟦ A ⊕ B ⟧F ρ = ⟦ A ⟧F ρ  ⊎ ⟦ B ⟧F ρ
@@ -194,119 +188,170 @@ MuF2G {F} {G} conv mf = Fold ( λ Y f v → IN {G} {Y} f (conv Y v)) mf
 ⟦ S ∷ Φ ⟧H ρ = ⟦ S ⟧s ρ × ⟦ Φ ⟧H ρ
 
 
-to : {X Y : Set} → X ≡ Y → X → Y
-to refl x = x
 
-insert : {X : Set} {n : ℕ} → X → Fin (suc n) → Vec X n → Vec X (suc n)
-insert x zero xs = x ∷ xs
-insert x (suc ()) []
-insert x (suc p) (y ∷ xs) = y ∷ insert x p xs
+-- weakening and substitution lemmata proved as equalities of sets 
+-- using function extensionality
 
+postulate funext : {A B : Set} {f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g
+    
+weakF-lem : {n : ℕ}(i : Fin (suc n)){X : Set}(A : Formula n) {ρ : Vec Set n} →
+   ⟦ weakenF i A ⟧F (insert ρ i X) ≡  ⟦ A ⟧F ρ
+weakF-lem i one = refl
+weakF-lem i (A ⊗ B) = cong₂ _×_ (weakF-lem i A) (weakF-lem i B) 
+weakF-lem i top = refl
+weakF-lem i (A ∧ B) = cong₂ _×_ (weakF-lem i A) (weakF-lem i B) 
+weakF-lem i zero = refl
+weakF-lem i (A ⊕ B) = cong₂ _⊎_ (weakF-lem i A) (weakF-lem i B) 
+weakF-lem i {X} (var j) {ρ} = insert-punchIn ρ i X j
+weakF-lem i (μ F) {ρ} = cong Mu (funext λ Y → weakF-lem (suc i) F {Y ∷ ρ})
 
-substEq : {n : ℕ} → (i : Fin (suc n)) → (A : Formula (suc n)) → {B : Formula n} → {ρ : Vec Set n} → ⟦ substVar i B A  ⟧F ρ ≡ ⟦ A ⟧F (insert (⟦ B ⟧F ρ) i ρ )
-substEq i one = refl
-substEq i (A ⊗ A₁) = cong₂ _×_ (substEq i A) (substEq i A₁)
-substEq i top = refl
-substEq i (A ∧ A₁) = cong₂ _×_ (substEq i A) (substEq i A₁)
-substEq i zero = refl
-substEq i (A ⊕ A₁) {B} {ρ} rewrite (substEq i A {B} {ρ}) | (substEq i A₁ {B} {ρ}) = refl
-substEq i (var j) with cmpr i j
-substEq .j (var j) | yes refl = {!!} -- doable
-substEq i (var j) | no ¬p = {!!} -- doable
-substEq {0F} 0F (μ A) {ρ = []} = {!!}
-substEq {suc n} _ (μ A) = {!!}
+subst-lem : {n : ℕ} (i : Fin (suc n)) {C : Formula n} (A : Formula (suc n)) {ρ : Vec Set n} →
+   ⟦ substF i C A ⟧F ρ ≡ ⟦ A ⟧F (insert ρ i (⟦ C ⟧F ρ))
+subst-lem i one = refl
+subst-lem i (A ⊗ B) = cong₂ _×_ (subst-lem i A) (subst-lem i B)
+subst-lem i top = refl
+subst-lem i (A ∧ B) = cong₂ _×_ (subst-lem i A) (subst-lem i B)
+subst-lem i zero = refl
+subst-lem i (A ⊕ B) = cong₂ _⊎_ (subst-lem i A) (subst-lem i B)
+subst-lem i (var j) with i ≟ j
+subst-lem i {C} (var .i) {ρ} | yes refl = sym (insert-lookup ρ i (⟦ C ⟧F ρ)) 
+subst-lem i {C} (var j) {ρ} | no ¬p = trans
+                  (cong (λ h → lookup h (punchOut ¬p)) (sym (remove-insert ρ i (⟦ C ⟧F ρ))))
+                  (remove-punchOut (insert ρ i (⟦ C ⟧F ρ)) ¬p)
+subst-lem i {C} (μ A) {ρ} = cong Mu (funext (λ Y → trans
+                  (subst-lem (suc i) {weakenF 0F C} A {Y ∷ ρ})
+                  (cong (λ h → ⟦ A ⟧F (Y ∷ insert ρ i h)) (weakF-lem 0F C))))
+                  
 
-substEq' : {n : ℕ} → (i : Fin (suc n))  →  (A : Formula (suc n)) → {B : Formula n} → {ρ : Vec Set n} → ⟦ substVar i B A  ⟧F ρ → ⟦ A ⟧F (insert (⟦ B ⟧F ρ) i ρ )
-substEq' i A q = subst id (substEq i A) q 
+-- weakening and substitution lemmata proved as bijections between sets
+-- without using function extensionality 
 
-
-inser-punch : {X : Set} {n : ℕ} → (x : X) → (j : Fin n) → (i : Fin (suc n)) → (ρ : Vec X n) →  lookup ρ j ≡ lookup  (insert x i ρ) (punchIn i j)
-inser-punch x j zero ρ = refl
-inser-punch x zero (suc i) (x₁ ∷ ρ) = refl
-inser-punch x (suc j) (suc i) (x₁ ∷ ρ) = inser-punch x j i ρ
-
-
-
-
-
-F→weakF : {n : ℕ}(i : Fin (suc n)){X : Set}(C : Formula n) → {ρ : Vec Set n}
-  →  ⟦ C ⟧F ρ → ⟦ weakenFA i C ⟧F (insert X i ρ)
-F→weakF i one v = tt
-F→weakF i (A ∧ B) (a , b) = F→weakF i A a , F→weakF i B b
-F→weakF i (A ⊕ B) (inj₁ a) = inj₁ (F→weakF i A a)
-F→weakF i (A ⊕ B) (inj₂ b) = inj₂ (F→weakF i B b)
-F→weakF i (var x) {ρ} v = subst id (inser-punch _ _ i ρ) v
-F→weakF {n} i {X} (μ C) {ρ} mv = MuF2G (λ Y  → F→weakF (suc i) C {Y ∷ ρ} ) mv
-
-
-weakF→F : {n : ℕ}(i : Fin (suc n)){X : Set}(C : Formula n) → {ρ : Vec Set n}
-  → ⟦ weakenFA i C ⟧F (insert X i ρ) →  ⟦ C ⟧F ρ
-weakF→F i one v = tt
-weakF→F i (A ∧ B) (a , b) = (weakF→F i A a) , (weakF→F i B b)
-weakF→F i (A ⊕ B) (inj₁ a) = inj₁ (weakF→F i A a)
-weakF→F i (A ⊕ B) (inj₂ b) = inj₂ (weakF→F i B b)
-weakF→F i (var x) {ρ} v = subst id (sym (inser-punch _ _ i ρ)) v
-weakF→F {n} i {X} (μ C) {ρ} mv = MuF2G (λ Y  → weakF→F (suc i) C {Y ∷ ρ} ) mv
+weakF-lem-from : {n : ℕ}(i : Fin (suc n)){X : Set}(C : Formula n){ρ : Vec Set n} →
+   ⟦ weakenF i C ⟧F (insert ρ i X) →  ⟦ C ⟧F ρ
+weakF-lem-from i one tt = tt
+weakF-lem-from i (A ⊗ B) (x₁ , x₂) = weakF-lem-from i A x₁ , weakF-lem-from i B x₂
+weakF-lem-from i top tt = tt
+weakF-lem-from i (A ∧ B) (x₁ , x₂) = weakF-lem-from i A x₁ , weakF-lem-from i B x₂
+weakF-lem-from i (A ⊕ B) (inj₁ x) = inj₁ (weakF-lem-from i A x)
+weakF-lem-from i (A ⊕ B) (inj₂ x) = inj₂ (weakF-lem-from i B x)
+weakF-lem-from i {X} (var j) {ρ} x = subst id (insert-punchIn ρ i X j) x
+weakF-lem-from i (μ A) {ρ} x = MuF2G (λ Y → weakF-lem-from (suc i) A {Y ∷ ρ} ) x
 
 
-weakC→C : {n : ℕ}{X : Set}(Γ : Context n) → {ρ : Vec Set n} → ⟦ weakenContext Γ ⟧c (X ∷ ρ) → ⟦ Γ ⟧c ρ
-weakC→C [] v = v
-weakC→C (A ∷ Γ) (x , xs) = weakF→F zero A x , weakC→C Γ xs
-
-C→weakC : {n : ℕ}{X : Set}(Γ : Context n) → {ρ : Vec Set n} → ⟦ Γ ⟧c ρ
- → ⟦ weakenContext Γ ⟧c (X ∷ ρ) 
-C→weakC [] v = v
-C→weakC (A ∷ Γ) (x , xs) = F→weakF zero A x , C→weakC Γ xs
-
-
-
-weakS→S : {n : ℕ}{X : Set}(S : Seq n) → {ρ : Vec Set n} → ⟦ weakenSeq S ⟧s (X ∷ ρ) → ⟦ S ⟧s ρ
-weakS→S (Γ  ⇒ A) f = weakF→F zero A ∘ f ∘ C→weakC Γ
-
-S→weakS : {n : ℕ}{X : Set}(S : Seq n) → {ρ : Vec Set n} → ⟦ S ⟧s ρ → ⟦ weakenSeq S ⟧s (X ∷ ρ)
-S→weakS (Γ  ⇒ A) f = F→weakF zero A ∘ f ∘ weakC→C Γ
-
-weakH→H : {n : ℕ}{X : Set}(Φ : HContext n) → {ρ : Vec Set n}
- → ⟦ weakenHContext Φ ⟧H (X ∷ ρ) → ⟦ Φ ⟧H ρ 
-weakH→H [] v = v
-weakH→H (S ∷ Φ) (f , fs) = weakS→S S f , weakH→H Φ fs
-
-H→weakH : {n : ℕ}{X : Set}(Φ : HContext n) → {ρ : Vec Set n}
-  → ⟦ Φ ⟧H ρ  → ⟦ weakenHContext Φ ⟧H (X ∷ ρ)
-H→weakH [] v = v
-H→weakH (S ∷ Φ) (f , fs) = S→weakS S f , H→weakH Φ fs
+weakF-lem-to : {n : ℕ}(i : Fin (suc n)){X : Set}(C : Formula n){ρ : Vec Set n} →
+   ⟦ C ⟧F ρ → ⟦ weakenF i C ⟧F (insert ρ i X)
+weakF-lem-to i one tt = tt
+weakF-lem-to i (A ⊗ B) (x₁ , x₂) = weakF-lem-to i A x₁ , weakF-lem-to i B x₂
+weakF-lem-to i top tt = tt
+weakF-lem-to i (A ∧ B) (x₁ , x₂) = weakF-lem-to i A x₁ , weakF-lem-to i B x₂
+weakF-lem-to i (A ⊕ B) (inj₁ x) = inj₁ (weakF-lem-to i A x)
+weakF-lem-to i (A ⊕ B) (inj₂ x) = inj₂ (weakF-lem-to i B x)
+weakF-lem-to i {X} (var j) {ρ} x = subst id (sym (insert-punchIn ρ i X j)) x
+weakF-lem-to i (μ A) {ρ} x = MuF2G (λ Y → weakF-lem-to (suc i) A {Y ∷ ρ} ) x
 
 
+subst-lem-from : {n : ℕ} (i : Fin (suc n)) {C : Formula n} (A : Formula (suc n)) {ρ : Vec Set n} →
+   ⟦ substF i C A ⟧F ρ → ⟦ A ⟧F (insert ρ i (⟦ C ⟧F ρ))
+subst-lem-from i one tt = tt
+subst-lem-from i (A ⊗ B) (x₁ , x₂) = subst-lem-from i A x₁ , subst-lem-from i B x₂ 
+subst-lem-from i top tt = tt
+subst-lem-from i (A ∧ B) (x₁ , x₂) = subst-lem-from i A x₁ , subst-lem-from i B x₂
+subst-lem-from i (A ⊕ B) (inj₁ x) = inj₁ (subst-lem-from i A x)
+subst-lem-from i (A ⊕ B) (inj₂ x) = inj₂ (subst-lem-from i B x)
+subst-lem-from i (var j) x with i ≟ j
+subst-lem-from i {C} (var .i) {ρ} x | yes refl = subst id (sym (insert-lookup ρ i (⟦ C ⟧F ρ))) x 
+subst-lem-from i {C} (var j) {ρ} x | no ¬p = subst id (trans
+                  (cong (λ h → lookup h (punchOut ¬p)) (sym (remove-insert ρ i (⟦ C ⟧F ρ))))
+                  (remove-punchOut (insert ρ i (⟦ C ⟧F ρ)) ¬p)) x
+subst-lem-from i {C} (μ A) {ρ} x = MuF2G (λ Y y → subst id
+                  (cong (λ h → ⟦ A ⟧F (Y ∷ insert ρ i h)) (weakF-lem 0F C))
+                  (subst-lem-from (suc i) {weakenF 0F C} A {Y ∷ ρ} y)) x
+                     -- to be rewritten to use weakF-lem-to,
+                     -- needs a monotonicity lemma
 
-splitc : {n : ℕ}{Γ Δ : Context n}{ρ : Vec Set n} → ⟦ Γ ++ Δ ⟧c ρ → ⟦ Γ ⟧c ρ × ⟦ Δ ⟧c ρ 
-splitc {_} {[]} xs =  tt , xs
-splitc {_} {A ∷ Γ} (x , xs) with splitc {_} {Γ} xs
-... | ys , zs =  (x , ys)  , zs 
+subst-lem-to : {n : ℕ} (i : Fin (suc n)) {C : Formula n} (A : Formula (suc n)) {ρ : Vec Set n} →
+   ⟦ A ⟧F (insert ρ i (⟦ C ⟧F ρ)) → ⟦ substF i C A ⟧F ρ
+subst-lem-to i one tt = tt
+subst-lem-to i (A ⊗ B) (x₁ , x₂) = subst-lem-to i A x₁ , subst-lem-to i B x₂ 
+subst-lem-to i top tt = tt
+subst-lem-to i (A ∧ B) (x₁ , x₂) = subst-lem-to i A x₁ , subst-lem-to i B x₂ 
+subst-lem-to i (A ⊕ B) (inj₁ x) = inj₁ (subst-lem-to i A x)
+subst-lem-to i (A ⊕ B) (inj₂ x) = inj₂ (subst-lem-to i B x)
+subst-lem-to i {C} (var j) {ρ} x with i ≟ j
+subst-lem-to i {C} (var .i) {ρ} x | yes refl = subst id (insert-lookup ρ i (⟦ C ⟧F ρ)) x
+subst-lem-to i {C} (var j) {ρ} x | no ¬p = subst id (trans
+                  (sym (remove-punchOut (insert ρ i (⟦ C ⟧F ρ)) ¬p))
+                  (cong (λ h → lookup h (punchOut ¬p)) (remove-insert ρ i (⟦ C ⟧F ρ)))) x
+subst-lem-to i {C} (μ A) {ρ} x = MuF2G (λ Y y →
+                  subst-lem-to (suc i) {weakenF 0F C} A {Y ∷ ρ} 
+                  (subst id
+                  (cong (λ h → ⟦ A ⟧F (Y ∷ insert ρ i h)) (sym (weakF-lem 0F C))) y)) x
+                     -- to be rewritten to use weakF-lem-from,
+                     -- needs the same monotonicity lemma
+                  
+weakC-lem-from : {n : ℕ}{X : Set}(Γ : Context n){ρ : Vec Set n} →
+   ⟦ weakenContext Γ ⟧c (X ∷ ρ) → ⟦ Γ ⟧c ρ
+weakC-lem-from [] tt = tt
+weakC-lem-from (A ∷ Γ) (x , xs) = weakF-lem-from zero A x , weakC-lem-from Γ xs
+
+weakC-lem-to : {n : ℕ}{X : Set}(Γ : Context n){ρ : Vec Set n} →
+   ⟦ Γ ⟧c ρ → ⟦ weakenContext Γ ⟧c (X ∷ ρ) 
+weakC-lem-to [] tt = tt
+weakC-lem-to (A ∷ Γ) (x , xs) = weakF-lem-to zero A x , weakC-lem-to Γ xs
+
+
+weakS-lem-from : {n : ℕ}{X : Set}(S : Seq n){ρ : Vec Set n} →
+   ⟦ weakenSeq S ⟧s (X ∷ ρ) → ⟦ S ⟧s ρ
+weakS-lem-from (Γ ⇒ A) f = weakF-lem-from zero A ∘ f ∘ weakC-lem-to Γ
+
+weakS-lem-to : {n : ℕ}{X : Set}(S : Seq n){ρ : Vec Set n} →
+   ⟦ S ⟧s ρ → ⟦ weakenSeq S ⟧s (X ∷ ρ)
+weakS-lem-to (Γ ⇒ A) f = weakF-lem-to zero A ∘ f ∘ weakC-lem-from Γ
+
+weakH-lem-from : {n : ℕ}{X : Set}(Φ : HContext n){ρ : Vec Set n} →
+   ⟦ weakenHContext Φ ⟧H (X ∷ ρ) → ⟦ Φ ⟧H ρ 
+weakH-lem-from [] tt = tt
+weakH-lem-from (S ∷ Φ) (f , fs) = weakS-lem-from S f , weakH-lem-from Φ fs
+
+weakH-lem-to : {n : ℕ}{X : Set}(Φ : HContext n){ρ : Vec Set n} →
+   ⟦ Φ ⟧H ρ  → ⟦ weakenHContext Φ ⟧H (X ∷ ρ)
+weakH-lem-to [] tt = tt
+weakH-lem-to (S ∷ Φ) (f , fs) = weakS-lem-to S f , weakH-lem-to Φ fs
+
+
+
+splitC : {n : ℕ}{Γ Δ : Context n}{ρ : Vec Set n} →
+   ⟦ Γ ++ Δ ⟧c ρ → ⟦ Γ ⟧c ρ × ⟦ Δ ⟧c ρ 
+splitC {_} {[]} xs =  tt , xs
+splitC {_} {A ∷ Γ} (x , xs) with splitC {_} {Γ} xs
+... | xs' , xs'' =  (x , xs') , xs''
 
 ⟦_⟧ : {n : ℕ}{Φ : HContext n}{S : Seq n} → n , Φ ⊢ S → (ρ : Vec Set n) → ⟦ Φ ⟧H ρ → ⟦ S ⟧s ρ
-⟦ id-axiom ⟧ ρ φ (x , tt) = x
-⟦ one-r ⟧ ρ φ tt =  tt
-⟦ one-l f ⟧ ρ φ (tt , xs) =  ⟦ f  ⟧ ρ φ xs 
-⟦ ⊗-r f g ⟧ ρ φ xs with splitc xs
-... | ys , zs = ⟦ f ⟧ ρ φ ys , ⟦ g ⟧ ρ φ zs
-⟦ ⊗-l f ⟧ ρ φ ((x , y) , xs) = ⟦ f ⟧ ρ φ (x , y , xs) 
-⟦ top-r ⟧ ρ φ  _ = tt
-⟦ ∧-r f g ⟧ ρ φ xs =  ⟦ f ⟧ ρ φ xs , ⟦ g ⟧ ρ φ xs 
-⟦ ∧-l₁ f ⟧ ρ φ ((x , y) , xs) = ⟦ f ⟧ ρ φ (x , xs) 
-⟦ ∧-l₂ f ⟧ ρ φ ((x , y) , xs) = ⟦ f ⟧ ρ φ (y , xs)
-⟦ zero-l ⟧ ρ φ (() , xs)
-⟦ ⊕-r₁ f ⟧ ρ φ xs = inj₁ (⟦ f ⟧ ρ φ xs)
-⟦ ⊕-r₂ f ⟧ ρ φ xs = inj₂ (⟦ f ⟧ ρ φ xs)
-⟦ ⊕-l f g ⟧ ρ φ (inj₁ x , xs) = ⟦ f ⟧ ρ φ (x , xs)
-⟦ ⊕-l f g ⟧ ρ φ (inj₂ y , xs) = ⟦ g ⟧ ρ φ (y , xs)
-⟦ μ-r {A = A} f ⟧ ρ φ xs = In (substEq' 0F A (⟦ f ⟧ ρ φ xs)  )
+⟦ id-axiom ⟧ ρ fs (x , tt) = x
+⟦ one-r ⟧ ρ fs tt =  tt
+⟦ one-l f ⟧ ρ fs (tt , xs) =  ⟦ f ⟧ ρ fs xs 
+⟦ ⊗-r f g ⟧ ρ fs xs with splitC xs
+... | xs' , xs'' = ⟦ f ⟧ ρ fs xs' , ⟦ g ⟧ ρ fs xs''
+⟦ ⊗-l f ⟧ ρ fs ((x₁ , x₂) , xs) = ⟦ f ⟧ ρ fs (x₁ , x₂ , xs) 
+⟦ top-r ⟧ ρ fs  _ = tt
+⟦ ∧-r f g ⟧ ρ fs xs =  ⟦ f ⟧ ρ fs xs , ⟦ g ⟧ ρ fs xs 
+⟦ ∧-l₁ f ⟧ ρ fs ((x , _) , xs) = ⟦ f ⟧ ρ fs (x , xs) 
+⟦ ∧-l₂ f ⟧ ρ fs ((_ , x) , xs) = ⟦ f ⟧ ρ fs (x , xs)
+⟦ ⊕-r₁ f ⟧ ρ fs xs = inj₁ (⟦ f ⟧ ρ fs xs)
+⟦ ⊕-r₂ f ⟧ ρ fs xs = inj₂ (⟦ f ⟧ ρ fs xs)
+⟦ ⊕-l f g ⟧ ρ fs (inj₁ x , xs) = ⟦ f ⟧ ρ fs (x , xs)
+⟦ ⊕-l f g ⟧ ρ fs (inj₂ x , xs) = ⟦ g ⟧ ρ fs (x , xs)
+⟦ μ-r {A = A} f ⟧ ρ fs xs = In (subst-lem-from 0F A (⟦ f ⟧ ρ fs xs))
 
-⟦ μ-l {Φ = Φ} {Γ = Γ} {C = C} f ⟧ ρ φ = uncurry (Fold λ X recf q1 q2 → ((weakF→F zero {X = X} C {ρ})) (⟦ f  ⟧ (X ∷ ρ) ((λ { (x , b) →  (F→weakF zero C) (recf x (weakC→C Γ  b))  }) , H→weakH Φ φ) (q1 , C→weakC Γ q2) ))
+⟦ μ-l {Φ = Φ} {Γ = Γ} {C = C} f ⟧ ρ fs = uncurry (Fold λ X recf q1 q2 →
+     weakF-lem-from zero {X} C {ρ} (⟦ f ⟧ (X ∷ ρ)
+        (( λ { (x , b) → weakF-lem-to zero C (recf x (weakC-lem-from Γ b)) }) , weakH-lem-to Φ fs)
+        (q1 , weakC-lem-to Γ q2))) 
 ⟦ hyp-use (here refl) ⟧ ρ (f , _) = f
-⟦ hyp-use (there x) ⟧ ρ (_ , φ') = ⟦ hyp-use x ⟧ ρ φ'
-⟦ contr f ⟧ ρ φ (x , xs) = ⟦ f ⟧ ρ φ (x , x , xs) 
-⟦ weakn f ⟧ ρ φ (x , xs) = ⟦ f ⟧ ρ φ xs 
-⟦ exchng refl x₁ ⟧ ρ φ = {!!}
+⟦ hyp-use (there x) ⟧ ρ (_ , fs) = ⟦ hyp-use x ⟧ ρ fs
+⟦ ctr f ⟧ ρ fs (x , xs) = ⟦ f ⟧ ρ fs (x , x , xs) 
+⟦ wk f ⟧ ρ fs (x , xs) = ⟦ f ⟧ ρ fs xs 
+⟦ exch refl x₁ ⟧ ρ fs = {!!}
 
 
 
