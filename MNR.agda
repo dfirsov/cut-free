@@ -23,6 +23,11 @@ infix 25 _⊕_
 infix 4 _⇒_
 infix 3 _,_⊢_
 
+data _∈_/_  {X : Set} : X → List X → List X → Set where
+  herex : {x : X}{xs : List X} → x ∈ (x ∷ xs) / xs
+  therex : {x y : X}{xs ys : List X} → x ∈ xs / ys → x ∈ (y ∷ xs) / (y ∷ ys)
+
+
 data Formula : ℕ → Set where
   one : ∀ {n} → Formula n
   _⊗_ : ∀ {n} → Formula n → Formula n → Formula n
@@ -143,10 +148,10 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
             → n , Φ ⊢ Γ ⇒ C
             → n , Φ ⊢ A ∷ Γ ⇒ C
 
-  exch  : {n : ℕ}{Φ : HContext n} {Γ Γ₁ Γ₂ : Context n} {A : Formula n}{C : Formula n}
-            → Γ ≡  Γ₁ ++ Γ₂         
-            → n , Φ ⊢ Γ₁ ++ A ∷ Γ₂ ⇒ C
-            → n , Φ ⊢ A ∷ Γ ⇒ C  
+  exch  : {n : ℕ}{Φ : HContext n} {Γ Γ' : Context n} {A : Formula n}{C : Formula n}
+            → A ∈ Γ / Γ'         
+            → n , Φ ⊢ A ∷ Γ' ⇒ C
+            → n , Φ ⊢ Γ ⇒ C  
 
 
 
@@ -154,13 +159,13 @@ data Mu (F : Set → Set) :  Set where
   IN : {X : Set} → (X → Mu F) → F X → Mu F
 
 In : {F : Set → Set} → F (Mu F) → Mu F
-In {F} m = IN {_} {Mu F} id m
+In {F} m = IN {F} {Mu F} id m
 
 Fold : {F : Set → Set}{C : Set} → ((Y : Set) → (Y → C) → F Y → C) → Mu F  → C
 Fold {F} alg (IN {X} f x) = alg X (Fold alg ∘ f) x 
 
 MuF2G : {F G : Set → Set} → ((Y : Set) → F Y → G Y) → Mu F → Mu G
-MuF2G {F} {G} f2g x = Fold {F}  ( λ Y f y → IN {G} {Y} f (f2g Y y)) x
+MuF2G {F} {G} f2g = Fold {F} ( λ Y f → IN {G} {Y} f ∘ f2g Y)
 
 
 
@@ -188,10 +193,16 @@ MuF2G {F} {G} f2g x = Fold {F}  ( λ Y f y → IN {G} {Y} f (f2g Y y)) x
 ⟦ S ∷ Φ ⟧H ρ = ⟦ S ⟧s ρ × ⟦ Φ ⟧H ρ
 
 
-{-
--- weaking and substitution lemmata proved as equalities of sets 
--- using function extensionality
+insert-lookup-neq : {n : ℕ}(ρ : Vec Set n)(i : Fin (suc n))(X : Set){j : Fin (suc n)}(¬p : ¬ i ≡ j) → 
+    lookup (insert ρ i X) j ≡ lookup ρ (punchOut ¬p)
+insert-lookup-neq ρ i X ¬p = trans
+    (sym (remove-punchOut (insert ρ i X) ¬p))
+    (cong (λ h → lookup h (punchOut ¬p)) (remove-insert ρ i X))
 
+{-
+-- weakening and substitution lemmata proved as equalities of sets 
+-- using function extensionality
+za<
 postulate funext : {A B : Set} {f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g
     
 weakF-lem : {n : ℕ}(i : Fin (suc n)){X : Set}(A : Formula n) {ρ : Vec Set n} →
@@ -215,16 +226,14 @@ subst-lem i zero = refl
 subst-lem i (A ⊕ B) = cong₂ _⊎_ (subst-lem i A) (subst-lem i B)
 subst-lem i (var j) with i ≟ j
 subst-lem i {C} (var .i) {ρ} | yes refl = sym (insert-lookup ρ i (⟦ C ⟧F ρ)) 
-subst-lem i {C} (var j) {ρ} | no ¬p = trans
-                  (cong (λ h → lookup h (punchOut ¬p)) (sym (remove-insert ρ i (⟦ C ⟧F ρ))))
-                  (remove-punchOut (insert ρ i (⟦ C ⟧F ρ)) ¬p)
+subst-lem i {C} (var j) {ρ} | no ¬p = sym (insert-lookup-neq ρ i (⟦ C ⟧F ρ) ¬p)
 subst-lem i {C} (μ A) {ρ} = cong Mu (funext (λ Y → trans
                   (subst-lem (suc i) {weakF 0F C} A {Y ∷ ρ})
                   (cong (λ h → ⟦ A ⟧F (Y ∷ insert ρ i h)) (weakF-lem 0F C))))
 -}                  
 
 
--- weaking and substitution lemmata proved as bijections between sets
+-- weakening and substitution lemmata proved as bijections between sets
 -- without using function extensionality 
 
 weakF-lem-from : {n : ℕ}(i : Fin (suc n)){X : Set}(C : Formula n){ρ : Vec Set n} →
@@ -260,8 +269,9 @@ monot i (A ⊕ B) f (inj₁ x) = inj₁ (monot i A f x)
 monot i (A ⊕ B) f (inj₂ x) = inj₂ (monot i B f x)
 monot i (var j) f with i ≟ j
 monot i (var .i) {ρ} {X} {X'} f | yes refl =
-             subst id (sym (insert-lookup ρ i X')) ∘ f ∘ subst id (insert-lookup ρ i X)
-monot i (var j) f | no ¬p = {!!}
+    subst id (sym (insert-lookup ρ i X')) ∘ f ∘ subst id (insert-lookup ρ i X)
+monot i (var j) {ρ} {X} {X'} f | no ¬p =
+    subst id (sym (insert-lookup-neq ρ i X' ¬p)) ∘ subst id (insert-lookup-neq ρ i X ¬p)
 monot i (μ A) {ρ} f = MuF2G (λ Y → monot (suc i) A {Y ∷ ρ} f)
 
 
@@ -275,9 +285,7 @@ subst-lem-from i (A ⊕ B) (inj₁ x) = inj₁ (subst-lem-from i A x)
 subst-lem-from i (A ⊕ B) (inj₂ x) = inj₂ (subst-lem-from i B x)
 subst-lem-from i (var j) with i ≟ j
 subst-lem-from i {C} (var .i) {ρ} | yes refl = subst id (sym (insert-lookup ρ i (⟦ C ⟧F ρ)))
-subst-lem-from i {C} (var j) {ρ} | no ¬p = subst id (trans
-                  (cong (λ h → lookup h (punchOut ¬p)) (sym (remove-insert ρ i (⟦ C ⟧F ρ))))
-                  (remove-punchOut (insert ρ i (⟦ C ⟧F ρ)) ¬p))
+subst-lem-from i {C} (var j) {ρ} | no ¬p = subst id (sym (insert-lookup-neq ρ i (⟦ C ⟧F ρ) ¬p)) 
 subst-lem-from i {C} (μ A) {ρ} = MuF2G (λ Y →
                   monot (suc i) A {Y ∷ ρ} (weakF-lem-from 0F C)
                   ∘ subst-lem-from (suc i) {weakF 0F C} A {Y ∷ ρ})
@@ -292,9 +300,7 @@ subst-lem-to i (A ⊕ B) (inj₁ x) = inj₁ (subst-lem-to i A x)
 subst-lem-to i (A ⊕ B) (inj₂ x) = inj₂ (subst-lem-to i B x)
 subst-lem-to i {C} (var j) {ρ} with i ≟ j
 subst-lem-to i {C} (var .i) {ρ} | yes refl = subst id (insert-lookup ρ i (⟦ C ⟧F ρ))
-subst-lem-to i {C} (var j) {ρ} | no ¬p = subst id (trans
-                  (sym (remove-punchOut (insert ρ i (⟦ C ⟧F ρ)) ¬p))
-                  (cong (λ h → lookup h (punchOut ¬p)) (remove-insert ρ i (⟦ C ⟧F ρ))))
+subst-lem-to i {C} (var j) {ρ} | no ¬p = subst id (insert-lookup-neq ρ i (⟦ C ⟧F ρ) ¬p)
 subst-lem-to i {C} (μ A) {ρ} = MuF2G (λ Y →
                   subst-lem-to (suc i) {weakF 0F C} A {Y ∷ ρ} 
                   ∘ monot (suc i) A {Y ∷ ρ} (weakF-lem-to 0F C))
@@ -337,6 +343,12 @@ splitC {_} {A ∷ Γ} (x , xs) with splitC {_} {Γ} xs
 ... | xs₁ , xs₂ =  (x , xs₁) , xs₂
 
 
+exchC : {n : ℕ}{Γ Γ' : Context n}{A : Formula n}(p : A ∈ Γ / Γ'){ρ : Vec Set n} →
+   ⟦ Γ ⟧c ρ → ⟦ A ⟧F ρ × ⟦ Γ' ⟧c ρ
+exchC herex (x , xs) = x , xs
+exchC (therex p) (x , xs) with exchC p xs
+... | x' , xs' =  x' , x , xs'    
+
 ⟦_⟧ : {n : ℕ}{Φ : HContext n}{S : Seq n} → n , Φ ⊢ S → (ρ : Vec Set n) → ⟦ Φ ⟧H ρ → ⟦ S ⟧s ρ
 ⟦ id-axiom ⟧ ρ fs (x , tt) = x
 ⟦ one-r ⟧ ρ fs tt =  tt
@@ -362,7 +374,7 @@ splitC {_} {A ∷ Γ} (x , xs) with splitC {_} {Γ} xs
 ⟦ hyp-use (there x) ⟧ ρ (_ , fs) = ⟦ hyp-use x ⟧ ρ fs
 ⟦ ctr f ⟧ ρ fs (x , xs) = ⟦ f ⟧ ρ fs (x , x , xs) 
 ⟦ wk f ⟧ ρ fs (x , xs) = ⟦ f ⟧ ρ fs xs 
-⟦ exch refl x₁ ⟧ ρ fs = {!!}
+⟦ exch p f ⟧ ρ fs xs =  ⟦ f ⟧ ρ fs (exchC p xs)
 
 
 
