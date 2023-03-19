@@ -37,6 +37,7 @@ data Formula : ℕ → Set where
   _⊕_  : ∀ {n} → Formula n → Formula n → Formula n
   var  : ∀ {n} → Fin n → Formula n
   μ    : ∀ {n} → Formula (suc n) → Formula n
+  ν    : ∀ {n} → Formula (suc n) → Formula n
 
 Context : ℕ → Set
 Context n = List (Formula n)
@@ -55,8 +56,10 @@ weakF i top = top
 weakF i (A ∧ B) = weakF i A ∧ weakF i B
 weakF i zero = zero
 weakF i (A ⊕ B) = weakF i A ⊕ weakF i B  
-weakF i (var j) = var (punchIn i j) -- punchIn p x = if x≥p then x+1 else x
+weakF i (var j) = var (punchIn i j)
+     -- punchIn i j = if i≥i then j+1 else j
 weakF i (μ F) = μ (weakF (suc i) F)
+weakF i (ν F) = ν (weakF (suc i) F)
 
 substF : {n : ℕ} → Fin (suc n) → Formula n → Formula (suc n) → Formula n
 substF i C one = one
@@ -65,16 +68,18 @@ substF i C top = top
 substF i C (A ∧ B) = substF i C A ∧ substF i C B
 substF i C zero = zero
 substF i C (A ⊕ B) = substF i C A ⊕ substF i C B
-substF i C (μ A) = μ (substF (suc i)  (weakF zero C) A)
--- The function f(i,j) = if j>i then j-1 else j
 substF i C (var j) with i ≟ j
 substF i C (var j) | no ¬p = var (punchOut ¬p)
+    -- punchOut {i} {j} ¬p = if j>i then j-1 else j
 substF i C (var j) | yes refl = C
+substF i C (μ A) = μ (substF (suc i) (weakF zero C) A)
+substF i C (ν A) = ν (substF (suc i) (weakF zero C) A)
+ 
 
 
 
 
-weakContext : {n : ℕ} → Context n  → Context (suc n)
+weakContext : {n : ℕ} → Context n → Context (suc n)
 weakContext Γ  = map (weakF zero) Γ
 
 weakSeq : {n : ℕ} → Seq n  → Seq (suc n)
@@ -126,6 +131,8 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
              → n , Φ ⊢   B ∷ Γ ⇒ C 
              → n , Φ ⊢   A ⊕ B ∷ Γ ⇒ C   
 
+  -- fixpoint operators
+
   μ-r  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}
              → n , Φ ⊢  Γ ⇒ substF zero (μ A)  A
              → n , Φ ⊢  Γ ⇒ μ A
@@ -134,7 +141,18 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
             → suc n ,
                (var zero ∷ weakContext Γ ⇒ weakF zero C) ∷ weakHContext Φ
                      ⊢ A ∷ weakContext Γ ⇒ weakF zero C 
-            → n , Φ ⊢ μ A ∷  Γ ⇒ C
+            → n , Φ ⊢ μ A ∷ Γ ⇒ C
+
+  ν-r  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)}
+            → suc n ,
+               (weakContext Γ ⇒ var zero) ∷ weakHContext Φ
+                     ⊢ weakContext Γ ⇒ A 
+            → n , Φ ⊢ Γ ⇒ ν A
+
+  ν-l  : {n : ℕ}{Φ : HContext n} {Γ : Context n} {A : Formula (suc n)} {C : Formula n}
+             → n , Φ ⊢  substF zero (ν A) A ∷ Γ ⇒ C
+             → n , Φ ⊢  ν A ∷ Γ ⇒ C
+
 
   hyp-use : {n : ℕ}{Φ : HContext n}{S : Seq n}
      → S ∈ Φ → n , Φ  ⊢ S
@@ -153,21 +171,39 @@ data _,_⊢_ : (n : ℕ) → HContext n → Seq n → Set where
             → n , Φ ⊢ A ∷ Γ' ⇒ C
             → n , Φ ⊢ Γ ⇒ C  
 
+  cut : {n : ℕ}{Φ : HContext n} {Γ Δ : Context n} {A C : Formula n}
+             → n , Φ ⊢  Γ ⇒ A → n , Φ ⊢ A ∷ Δ ⇒ C → n , Φ ⊢  Γ ++ Δ ⇒ C
 
 
 data Mu (F : Set → Set) :  Set where
-  IN : {X : Set} → (X → Mu F) → F X → Mu F
+  IN : {Y : Set} → (Y → Mu F) → F Y → Mu F
 
 In : {F : Set → Set} → F (Mu F) → Mu F
-In {F} m = IN {F} {Mu F} id m
+In {F} = IN {F} {Mu F} id
 
-Fold : {F : Set → Set}{C : Set} → ((Y : Set) → (Y → C) → F Y → C) → Mu F  → C
-Fold {F} alg (IN {X} f x) = alg X (Fold alg ∘ f) x 
+Fold : {F : Set → Set}{C : Set} → ({Y : Set} → (Y → C) → F Y → C) → Mu F → C
+Fold {F} alg (IN {Y} f x) = alg {Y} (Fold alg ∘ f) x 
 
-MuF2G : {F G : Set → Set} → ((Y : Set) → F Y → G Y) → Mu F → Mu G
-MuF2G {F} {G} f2g = Fold {F} ( λ Y f → IN {G} {Y} f ∘ f2g Y)
+MuF2G : {F G : Set → Set} → ({Y : Set} → F Y → G Y) → Mu F → Mu G
+MuF2G {F} {G} f2g = Fold {F} ( λ {Y} f → IN {G} {Y} f ∘ f2g {Y})
 
+-- implementing Nu with the impredicative coding
+-- to avoid Agda's coinductive types
 
+Nu : (Set → Set) → Set
+Nu F = Σ Set λ X → ({Y : Set} → (X → Y) → X → F Y) × X
+
+OUT : {F : Set → Set}{Y : Set} → (Nu F → Y) → Nu F → F Y
+OUT {F} {Y} f (X , coalg , x) = coalg {Y} (λ x' → f (X , coalg , x')) x 
+
+Out : {F : Set → Set} → Nu F → F (Nu F)
+Out {F} = OUT {F} {Nu F} id 
+
+Unfold : {F : Set → Set}{C : Set} → ({Y : Set} → (C → Y) → C → F Y) → C → Nu F
+Unfold {F} {C} coalg x = C , coalg , x 
+
+NuF2G : {F G : Set → Set} → ({Y : Set} → F Y → G Y) → Nu F → Nu G
+NuF2G {F} {G} f2g = Unfold {G} (λ {Y} f → f2g {Y} ∘ OUT {F} {Y} f)
 
 
 ⟦_⟧F  : {n : ℕ} → Formula n → Vec Set n → Set
@@ -179,7 +215,7 @@ MuF2G {F} {G} f2g = Fold {F} ( λ Y f → IN {G} {Y} f ∘ f2g Y)
 ⟦ A ⊕ B ⟧F ρ = ⟦ A ⟧F ρ  ⊎ ⟦ B ⟧F ρ
 ⟦ var i ⟧F ρ = lookup ρ i
 ⟦ μ A ⟧F ρ = Mu λ (X : Set) → ⟦ A ⟧F (X ∷ ρ)  
-
+⟦ ν A ⟧F ρ = Nu λ (X : Set) → ⟦ A ⟧F (X ∷ ρ) 
 
 ⟦_⟧c : {n : ℕ} → Context n → Vec Set n → Set
 ⟦ [] ⟧c ρ = ⊤
@@ -199,10 +235,10 @@ insert-lookup-neq ρ i X ¬p = trans
     (sym (remove-punchOut (insert ρ i X) ¬p))
     (cong (λ h → lookup h (punchOut ¬p)) (remove-insert ρ i X))
 
-{-
+
 -- weakening and substitution lemmata proved as equalities of sets 
 -- using function extensionality
-za<
+
 postulate funext : {A B : Set} {f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g
     
 weakF-lem : {n : ℕ}(i : Fin (suc n)){X : Set}(A : Formula n) {ρ : Vec Set n} →
@@ -215,6 +251,7 @@ weakF-lem i zero = refl
 weakF-lem i (A ⊕ B) = cong₂ _⊎_ (weakF-lem i A) (weakF-lem i B) 
 weakF-lem i {X} (var j) {ρ} = insert-punchIn ρ i X j
 weakF-lem i (μ F) {ρ} = cong Mu (funext λ Y → weakF-lem (suc i) F {Y ∷ ρ})
+weakF-lem i (ν F) {ρ} = cong Nu (funext λ Y → weakF-lem (suc i) F {Y ∷ ρ})
 
 subst-lem : {n : ℕ} (i : Fin (suc n)) {C : Formula n} (A : Formula (suc n)) {ρ : Vec Set n} →
    ⟦ substF i C A ⟧F ρ ≡ ⟦ A ⟧F (insert ρ i (⟦ C ⟧F ρ))
@@ -230,7 +267,9 @@ subst-lem i {C} (var j) {ρ} | no ¬p = sym (insert-lookup-neq ρ i (⟦ C ⟧F 
 subst-lem i {C} (μ A) {ρ} = cong Mu (funext (λ Y → trans
                   (subst-lem (suc i) {weakF 0F C} A {Y ∷ ρ})
                   (cong (λ h → ⟦ A ⟧F (Y ∷ insert ρ i h)) (weakF-lem 0F C))))
--}                  
+subst-lem i {C} (ν A) {ρ} = cong Nu (funext (λ Y → trans
+                  (subst-lem (suc i) {weakF 0F C} A {Y ∷ ρ})
+                  (cong (λ h → ⟦ A ⟧F (Y ∷ insert ρ i h)) (weakF-lem 0F C))))
 
 
 -- weakening and substitution lemmata proved as bijections between sets
@@ -245,7 +284,10 @@ weakF-lem-from i (A ∧ B) (x₁ , x₂) = weakF-lem-from i A x₁ , weakF-lem-f
 weakF-lem-from i (A ⊕ B) (inj₁ x) = inj₁ (weakF-lem-from i A x)
 weakF-lem-from i (A ⊕ B) (inj₂ x) = inj₂ (weakF-lem-from i B x)
 weakF-lem-from i {X} (var j) {ρ} = subst id (insert-punchIn ρ i X j)
-weakF-lem-from i (μ A) {ρ} = MuF2G (λ Y → weakF-lem-from (suc i) A {Y ∷ ρ} )
+weakF-lem-from i (μ A) {ρ} = MuF2G (λ {Y} → weakF-lem-from (suc i) A {Y ∷ ρ})
+weakF-lem-from i (ν A) {ρ} = NuF2G (λ {Y} → weakF-lem-from (suc i) A {Y ∷ ρ})
+
+
 
 weakF-lem-to : {n : ℕ}(i : Fin (suc n)){X : Set}(C : Formula n){ρ : Vec Set n} →
    ⟦ C ⟧F ρ → ⟦ weakF i C ⟧F (insert ρ i X)
@@ -256,8 +298,8 @@ weakF-lem-to i (A ∧ B) (x₁ , x₂) = weakF-lem-to i A x₁ , weakF-lem-to i 
 weakF-lem-to i (A ⊕ B) (inj₁ x) = inj₁ (weakF-lem-to i A x)
 weakF-lem-to i (A ⊕ B) (inj₂ x) = inj₂ (weakF-lem-to i B x)
 weakF-lem-to i {X} (var j) {ρ} = subst id (sym (insert-punchIn ρ i X j))
-weakF-lem-to i (μ A) {ρ} = MuF2G (λ Y → weakF-lem-to (suc i) A {Y ∷ ρ})
-
+weakF-lem-to i (μ A) {ρ} = MuF2G (λ {Y} → weakF-lem-to (suc i) A {Y ∷ ρ})
+weakF-lem-to i (ν A) {ρ} = NuF2G (λ {Y} → weakF-lem-to (suc i) A {Y ∷ ρ})
 
 monot : {n : ℕ} (i : Fin (suc n))(A : Formula (suc n)){ρ : Vec Set n}{X X' : Set} → 
    (X → X') → ⟦ A ⟧F (insert ρ i X) → ⟦ A ⟧F (insert ρ i X')
@@ -272,8 +314,8 @@ monot i (var .i) {ρ} {X} {X'} f | yes refl =
     subst id (sym (insert-lookup ρ i X')) ∘ f ∘ subst id (insert-lookup ρ i X)
 monot i (var j) {ρ} {X} {X'} f | no ¬p =
     subst id (sym (insert-lookup-neq ρ i X' ¬p)) ∘ subst id (insert-lookup-neq ρ i X ¬p)
-monot i (μ A) {ρ} f = MuF2G (λ Y → monot (suc i) A {Y ∷ ρ} f)
-
+monot i (μ A) {ρ} f = MuF2G (λ {Y} → monot (suc i) A {Y ∷ ρ} f)
+monot i (ν A) {ρ} f = NuF2G (λ {Y} → monot (suc i) A {Y ∷ ρ} f)
 
 subst-lem-from : {n : ℕ} (i : Fin (suc n)) {C : Formula n} (A : Formula (suc n)) {ρ : Vec Set n} →
    ⟦ substF i C A ⟧F ρ → ⟦ A ⟧F (insert ρ i (⟦ C ⟧F ρ))
@@ -286,9 +328,13 @@ subst-lem-from i (A ⊕ B) (inj₂ x) = inj₂ (subst-lem-from i B x)
 subst-lem-from i (var j) with i ≟ j
 subst-lem-from i {C} (var .i) {ρ} | yes refl = subst id (sym (insert-lookup ρ i (⟦ C ⟧F ρ)))
 subst-lem-from i {C} (var j) {ρ} | no ¬p = subst id (sym (insert-lookup-neq ρ i (⟦ C ⟧F ρ) ¬p)) 
-subst-lem-from i {C} (μ A) {ρ} = MuF2G (λ Y →
+subst-lem-from i {C} (μ A) {ρ} = MuF2G (λ {Y} →
                   monot (suc i) A {Y ∷ ρ} (weakF-lem-from 0F C)
                   ∘ subst-lem-from (suc i) {weakF 0F C} A {Y ∷ ρ})
+subst-lem-from i {C} (ν A) {ρ} = NuF2G (λ {Y} →
+                  monot (suc i) A {Y ∷ ρ} (weakF-lem-from 0F C)
+                  ∘ subst-lem-from (suc i) {weakF 0F C} A {Y ∷ ρ})
+                  
 
 subst-lem-to : {n : ℕ} (i : Fin (suc n)) {C : Formula n} (A : Formula (suc n)) {ρ : Vec Set n} →
    ⟦ A ⟧F (insert ρ i (⟦ C ⟧F ρ)) → ⟦ substF i C A ⟧F ρ
@@ -301,10 +347,12 @@ subst-lem-to i (A ⊕ B) (inj₂ x) = inj₂ (subst-lem-to i B x)
 subst-lem-to i {C} (var j) {ρ} with i ≟ j
 subst-lem-to i {C} (var .i) {ρ} | yes refl = subst id (insert-lookup ρ i (⟦ C ⟧F ρ))
 subst-lem-to i {C} (var j) {ρ} | no ¬p = subst id (insert-lookup-neq ρ i (⟦ C ⟧F ρ) ¬p)
-subst-lem-to i {C} (μ A) {ρ} = MuF2G (λ Y →
+subst-lem-to i {C} (μ A) {ρ} = MuF2G (λ {Y} →
                   subst-lem-to (suc i) {weakF 0F C} A {Y ∷ ρ} 
                   ∘ monot (suc i) A {Y ∷ ρ} (weakF-lem-to 0F C))
-                  
+subst-lem-to i {C} (ν A) {ρ} = NuF2G (λ {Y} →
+                  subst-lem-to (suc i) {weakF 0F C} A {Y ∷ ρ} 
+                  ∘ monot (suc i) A {Y ∷ ρ} (weakF-lem-to 0F C))                  
 
 weakC-lem-from : {n : ℕ}{X : Set}(Γ : Context n){ρ : Vec Set n} →
    ⟦ weakContext Γ ⟧c (X ∷ ρ) → ⟦ Γ ⟧c ρ
@@ -364,18 +412,22 @@ exchC (therex p) (x , xs) with exchC p xs
 ⟦ ⊕-r₂ f ⟧ ρ fs xs = inj₂ (⟦ f ⟧ ρ fs xs)
 ⟦ ⊕-l f g ⟧ ρ fs (inj₁ x , xs) = ⟦ f ⟧ ρ fs (x , xs)
 ⟦ ⊕-l f g ⟧ ρ fs (inj₂ x , xs) = ⟦ g ⟧ ρ fs (x , xs)
-⟦ μ-r {A = A} f ⟧ ρ fs xs = In (subst-lem-from 0F A (⟦ f ⟧ ρ fs xs))
+⟦ μ-r {A = A} f ⟧ ρ fs xs = In (subst-lem-from 0F {μ A} A (⟦ f ⟧ ρ fs xs))
 
-⟦ μ-l {Φ = Φ} {Γ = Γ} {C = C} f ⟧ ρ fs = uncurry (Fold λ X recf q1 q2 →
-     weakF-lem-from zero {X} C {ρ} (⟦ f ⟧ (X ∷ ρ)
-        (( λ { (x , b) → weakF-lem-to zero C (recf x (weakC-lem-from Γ b)) }) , weakH-lem-to Φ fs)
-        (q1 , weakC-lem-to Γ q2))) 
+⟦ μ-l {Φ = Φ} {Γ = Γ} {C = C} f ⟧ ρ fs = uncurry (Fold (λ {Y} recf x xs →
+     weakF-lem-from zero {Y} C {ρ} (⟦ f ⟧ (Y ∷ ρ)
+        ((λ { (x' , xs') → weakF-lem-to zero C (recf x' (weakC-lem-from Γ xs')) }) , weakH-lem-to Φ fs)
+        (x , weakC-lem-to Γ xs))))
+⟦ ν-r {Φ = Φ} {Γ = Γ} f ⟧ ρ fs = Unfold (λ {Y} recf →
+    ⟦ f ⟧ (Y ∷ ρ) (recf ∘ weakC-lem-from Γ , weakH-lem-to Φ fs) ∘ weakC-lem-to Γ)
+⟦ ν-l {A = A} f ⟧ ρ fs (x , xs) = ⟦ f ⟧ ρ fs (subst-lem-to 0F {ν A} A (Out x) , xs)
 ⟦ hyp-use (here refl) ⟧ ρ (f , _) = f
 ⟦ hyp-use (there x) ⟧ ρ (_ , fs) = ⟦ hyp-use x ⟧ ρ fs
 ⟦ ctr f ⟧ ρ fs (x , xs) = ⟦ f ⟧ ρ fs (x , x , xs) 
 ⟦ wk f ⟧ ρ fs (x , xs) = ⟦ f ⟧ ρ fs xs 
 ⟦ exch p f ⟧ ρ fs xs =  ⟦ f ⟧ ρ fs (exchC p xs)
-
+⟦ cut f g ⟧ ρ fs xs with splitC xs
+... | xs₁ , xs₂ = ⟦ g ⟧ ρ fs (⟦ f ⟧ ρ fs xs₁ , xs₂)
 
 
 {-
