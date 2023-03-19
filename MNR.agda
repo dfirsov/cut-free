@@ -235,7 +235,7 @@ insert-lookup-neq ρ i X ¬p = trans
     (sym (remove-punchOut (insert ρ i X) ¬p))
     (cong (λ h → lookup h (punchOut ¬p)) (remove-insert ρ i X))
 
-
+{-
 -- weakening and substitution lemmata proved as equalities of sets 
 -- using function extensionality
 
@@ -270,7 +270,7 @@ subst-lem i {C} (μ A) {ρ} = cong Mu (funext (λ Y → trans
 subst-lem i {C} (ν A) {ρ} = cong Nu (funext (λ Y → trans
                   (subst-lem (suc i) {weakF 0F C} A {Y ∷ ρ})
                   (cong (λ h → ⟦ A ⟧F (Y ∷ insert ρ i h)) (weakF-lem 0F C))))
-
+-}
 
 -- weakening and substitution lemmata proved as bijections between sets
 -- without using function extensionality 
@@ -301,6 +301,7 @@ weakF-lem-to i {X} (var j) {ρ} = subst id (sym (insert-punchIn ρ i X j))
 weakF-lem-to i (μ A) {ρ} = MuF2G (λ {Y} → weakF-lem-to (suc i) A {Y ∷ ρ})
 weakF-lem-to i (ν A) {ρ} = NuF2G (λ {Y} → weakF-lem-to (suc i) A {Y ∷ ρ})
 
+
 monot : {n : ℕ} (i : Fin (suc n))(A : Formula (suc n)){ρ : Vec Set n}{X X' : Set} → 
    (X → X') → ⟦ A ⟧F (insert ρ i X) → ⟦ A ⟧F (insert ρ i X')
 monot i one f tt = tt
@@ -316,6 +317,7 @@ monot i (var j) {ρ} {X} {X'} f | no ¬p =
     subst id (sym (insert-lookup-neq ρ i X' ¬p)) ∘ subst id (insert-lookup-neq ρ i X ¬p)
 monot i (μ A) {ρ} f = MuF2G (λ {Y} → monot (suc i) A {Y ∷ ρ} f)
 monot i (ν A) {ρ} f = NuF2G (λ {Y} → monot (suc i) A {Y ∷ ρ} f)
+
 
 subst-lem-from : {n : ℕ} (i : Fin (suc n)) {C : Formula n} (A : Formula (suc n)) {ρ : Vec Set n} →
    ⟦ substF i C A ⟧F ρ → ⟦ A ⟧F (insert ρ i (⟦ C ⟧F ρ))
@@ -396,6 +398,7 @@ exchC : {n : ℕ}{Γ Γ' : Context n}{A : Formula n}(p : A ∈ Γ / Γ'){ρ : Ve
 exchC herex (x , xs) = x , xs
 exchC (therex p) (x , xs) with exchC p xs
 ... | x' , xs' =  x' , x , xs'    
+
 
 ⟦_⟧ : {n : ℕ}{Φ : HContext n}{S : Seq n} → n , Φ ⊢ S → (ρ : Vec Set n) → ⟦ Φ ⟧H ρ → ⟦ S ⟧s ρ
 ⟦ id-axiom ⟧ ρ fs (x , tt) = x
